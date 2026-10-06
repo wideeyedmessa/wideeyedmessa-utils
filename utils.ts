@@ -1,24 +1,27 @@
-export type CryptoInput = {
-  txHash: string;
-  amount: bigint;
-  recipient: string;
-};
+export interface RetryOptions {
+  retries: number;
+  delay: number;
+}
 
-export const isValidInput = (input: unknown): input is CryptoInput => {
-  if (typeof input !== 'object' || input === null) return false;
-  const { txHash, amount, recipient } = input as Record<string, unknown>;
-  return (
-    typeof txHash === 'string' && txHash.length === 64 &&
-    typeof amount === 'bigint' && amount > 0n &&
-    typeof recipient === 'string' && recipient.startsWith('0x')
-  );
-};
+export const withRetry = async <T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { retries: 3, delay: 1000 }
+): Promise<T> => {
+  let lastError: unknown;
 
-export const processTransactions = (queue: unknown[]): void => {
-  for (const item of queue) {
-    if (!isValidInput(item)) {
-      throw new Error('invalid crypto transaction format');
+  for (let i = 0; i < options.retries; i++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (i < options.retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, options.delay));
+      }
     }
-    console.log(`processing tx: ${item.txHash}`);
   }
+
+  throw lastError;
 };
+
+export const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
