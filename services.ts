@@ -1,43 +1,34 @@
-export interface TokenBalance {
-  symbol: string;
-  decimals: number;
-  rawBalance: bigint;
+export class CryptoError extends Error {
+  constructor(public message: string, public code: string) {
+    super(message);
+    this.name = 'CryptoError';
+  }
 }
 
-export interface FormattedBalance {
-  symbol: string;
-  formatted: string;
-  isZero: boolean;
-}
-
-export class CryptoService {
-  static formatTokenBalance(balance: TokenBalance): FormattedBalance {
-    const divisor = BigInt(10 ** balance.decimals);
-    const integerPart = balance.rawBalance / divisor;
-    const remainder = balance.rawBalance % divisor;
-
-    const remainderStr = remainder.toString().padStart(balance.decimals, '0');
-    const trimmedRemainder = remainderStr.replace(/0+$/, '');
-
-    const formatted = trimmedRemainder.length > 0
-      ? `${integerPart}.${trimmedRemainder}`
-      : integerPart.toString();
-
-    return {
-      symbol: balance.symbol,
-      formatted,
-      isZero: balance.rawBalance === 0n,
-    };
-  }
-
-  static isValidEthAddress(address: string): boolean {
-    return /^0x[a-fA-F0-9]{40}$/.test(address);
-  }
-
-  static calculateSlippage(amount: bigint, slippageBps: number): bigint {
-    if (slippageBps < 0 || slippageBps > 10000) {
-      throw new Error('Slippage must be between 0 and 10000 bps');
+export const safeExecute = async <T>(operation: () => Promise<T>): Promise<T> => {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new CryptoError(error.message, 'INTERNAL_EXECUTION_FAILURE');
     }
-    return (amount * BigInt(10000 - slippageBps)) / 10000n;
+    throw new CryptoError('An unexpected crypto service error occurred', 'UNKNOWN_FAILURE');
   }
-}
+};
+
+export const validateTransaction = (tx: unknown): tx is { hash: string } => {
+  if (typeof tx !== 'object' || tx === null || !('hash' in tx)) {
+    throw new CryptoError('Invalid transaction format', 'VALIDATION_ERROR');
+  }
+  return true;
+};
+
+export const fetchGasPrice = async (network: string): Promise<number> => {
+  if (!network) throw new CryptoError('Missing network identifier', 'PARAM_REQUIRED');
+  
+  const response = await fetch(`https://api.${network}.com/gas`);
+  if (!response.ok) {
+    throw new CryptoError('Gas price fetch failed', 'NETWORK_FAILURE');
+  }
+  return response.json();
+};
