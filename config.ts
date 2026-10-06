@@ -1,47 +1,31 @@
-export interface CryptoConfig {
-  network: 'mainnet' | 'testnet' | 'devnet';
+export interface Config {
   rpcUrl: string;
+  chainId: number;
   timeoutMs: number;
-  maxRetries: number;
-  gasMultiplier: number;
 }
 
-const DEFAULT_CONFIG: CryptoConfig = {
-  network: 'mainnet',
-  rpcUrl: 'https://cloudflare-eth.com',
-  timeoutMs: 15000,
-  maxRetries: 3,
-  gasMultiplier: 1.1,
+const defaults: Config = {
+  rpcUrl: 'https://api.mainnet.wideeyedmessa.io',
+  chainId: 1,
+  timeoutMs: 5000
 };
 
-export class ConfigLoader {
-  private config: CryptoConfig;
+export const loadConfig = (env: Partial<Config> = {}): Config => {
+  return {
+    rpcUrl: env.rpcUrl ?? defaults.rpcUrl,
+    chainId: env.chainId ?? defaults.chainId,
+    timeoutMs: env.timeoutMs ?? defaults.timeoutMs
+  };
+};
 
-  constructor(overrides: Partial<CryptoConfig> = {}) {
-    this.config = this.load(overrides);
+export const validateConfig = (config: Config): void => {
+  if (!config.rpcUrl.startsWith('https://')) {
+    throw new Error('invalid rpc url schema');
   }
+};
 
-  private load(overrides: Partial<CryptoConfig>): CryptoConfig {
-    const envConfig: Partial<CryptoConfig> = {
-      network: (process.env.CRYPTO_NETWORK as CryptoConfig['network']) || undefined,
-      rpcUrl: process.env.CRYPTO_RPC_URL || undefined,
-      timeoutMs: process.env.CRYPTO_TIMEOUT_MS ? parseInt(process.env.CRYPTO_TIMEOUT_MS, 10) : undefined,
-      maxRetries: process.env.CRYPTO_MAX_RETRIES ? parseInt(process.env.CRYPTO_MAX_RETRIES, 10) : undefined,
-      gasMultiplier: process.env.CRYPTO_GAS_MULTIPLIER ? parseFloat(process.env.CRYPTO_GAS_MULTIPLIER) : undefined,
-    };
-
-    const cleanEnvConfig = Object.fromEntries(
-      Object.entries(envConfig).filter(([_, v]) => v !== undefined)
-    );
-
-    return {
-      ...DEFAULT_CONFIG,
-      ...cleanEnvConfig,
-      ...overrides,
-    };
-  }
-
-  public get(): CryptoConfig {
-    return this.config;
-  }
-}
+export const config = loadConfig({
+  rpcUrl: process.env.RPC_URL,
+  chainId: Number(process.env.CHAIN_ID),
+  timeoutMs: Number(process.env.TIMEOUT_MS)
+});
