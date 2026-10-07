@@ -7,26 +7,32 @@ export class CryptoError extends Error {
 
 export const validateAddress = (address: string): boolean => {
   if (!address || typeof address !== 'string') {
-    throw new CryptoError('Invalid address format', 'ERR_INVALID_ADDR');
+    throw new CryptoError('Invalid address format', 'ERR_INVALID_FORMAT');
   }
-  const regex = /^0x[a-fA-F0-9]{40}$/;
-  return regex.test(address);
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    throw new CryptoError('Malformed checksum', 'ERR_MALFORMED_ADDRESS');
+  }
+  return true;
 };
 
-export const safeBigInt = (value: unknown): bigint => {
+export const safeParseBigInt = (value: unknown): bigint => {
   try {
-    if (value === null || value === undefined) throw new Error();
-    return BigInt(value as string | number);
+    if (typeof value === 'string' || typeof value === 'number') {
+      return BigInt(value);
+    }
+    throw new Error();
   } catch {
-    throw new CryptoError('Failed to parse BigInt value', 'ERR_INVALID_BIGINT');
+    throw new CryptoError('Failed to parse network unit', 'ERR_PARSE_FAILURE');
   }
 };
 
-export const executeWithErrorHandling = <T>(fn: () => T): T => {
-  try {
-    return fn();
-  } catch (error) {
-    if (error instanceof CryptoError) throw error;
-    throw new CryptoError('Unexpected runtime error', 'ERR_INTERNAL');
+export const handleRetry = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries - 1) throw err;
+    }
   }
+  throw new CryptoError('Execution failed after retries', 'ERR_MAX_RETRIES');
 };
