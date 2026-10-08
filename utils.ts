@@ -1,52 +1,30 @@
-export interface RetryOptions {
-  maxRetries?: number;
-  initialDelayMs?: number;
-  maxDelayMs?: number;
-  backoffFactor?: number;
-  retryableErrors?: (error: unknown) => boolean;
-}
+export type CryptoInput = { address: string; amount: bigint };
 
-export async function retryNetworkOp<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
-  const maxRetries = options.maxRetries ?? 3;
-  const initialDelayMs = options.initialDelayMs ?? 500;
-  const maxDelayMs = options.maxDelayMs ?? 10000;
-  const backoffFactor = options.backoffFactor ?? 2;
-  const isRetryable = options.retryableErrors ?? (() => true);
+export const validateInput = (input: unknown): CryptoInput => {
+  if (typeof input !== 'object' || input === null) {
+    throw new Error('invalid input format');
+  }
 
-  let attempt = 0;
-  let delay = initialDelayMs;
+  const { address, amount } = input as Record<string, unknown>;
 
-  while (true) {
+  if (typeof address !== 'string' || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    throw new Error('invalid ethereum address');
+  }
+
+  if (typeof amount !== 'bigint' || amount <= 0n) {
+    throw new Error('invalid transaction amount');
+  }
+
+  return { address, amount };
+};
+
+export const processTransactions = async (inputs: unknown[]): Promise<void> => {
+  for (const raw of inputs) {
     try {
-      return await fn();
-    } catch (error) {
-      attempt++;
-      if (attempt > maxRetries || !isRetryable(error)) {
-        throw error;
-      }
-
-      const jitter = Math.random() * 200;
-      const actualDelay = Math.min(delay + jitter, maxDelayMs);
-      await new Promise((resolve) => setTimeout(resolve, actualDelay));
-
-      delay *= backoffFactor;
+      const validated = validateInput(raw);
+      console.log(`processing ${validated.amount} to ${validated.address}`);
+    } catch (err) {
+      console.error(`skipping invalid entry: ${(err as Error).message}`);
     }
   }
-}
-
-export async function fetchWithRetry<T>(
-  url: string,
-  init?: RequestInit,
-  options?: RetryOptions
-): Promise<T> {
-  return retryNetworkOp(async () => {
-    const response = await fetch(url, init);
-    if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
-    }
-    return (await response.json()) as T;
-  }, options);
-}
+};
