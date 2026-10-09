@@ -1,31 +1,22 @@
-export interface Config {
-  rpcUrl: string;
-  chainId: number;
-  timeoutMs: number;
-}
+import winston from 'winston';
+import 'winston-daily-rotate-file';
 
-const defaults: Config = {
-  rpcUrl: 'https://api.mainnet.wideeyedmessa.io',
-  chainId: 1,
-  timeoutMs: 5000
-};
+const transport = new winston.transports.DailyRotateFile({
+  filename: 'logs/crypto-%DATE%.log',
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d'
+});
 
-export const loadConfig = (env: Partial<Config> = {}): Config => {
-  return {
-    rpcUrl: env.rpcUrl ?? defaults.rpcUrl,
-    chainId: env.chainId ?? defaults.chainId,
-    timeoutMs: env.timeoutMs ?? defaults.timeoutMs
-  };
-};
-
-export const validateConfig = (config: Config): void => {
-  if (!config.rpcUrl.startsWith('https://')) {
-    throw new Error('invalid rpc url schema');
-  }
-};
-
-export const config = loadConfig({
-  rpcUrl: process.env.RPC_URL,
-  chainId: Number(process.env.CHAIN_ID),
-  timeoutMs: Number(process.env.TIMEOUT_MS)
+export const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    transport
+  ]
 });
