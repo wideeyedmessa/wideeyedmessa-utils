@@ -1,32 +1,28 @@
-export interface CryptoData {
-  id: string;
-  price: number;
-  timestamp: number;
-}
-
-export const formatCurrency = (amount: number, precision: number = 2): string => {
-  return amount.toFixed(precision);
+export type CryptoInput = {
+  txHash: string;
+  amount: bigint;
+  chainId: number;
 };
 
-export const sanitizeCryptoData = (data: unknown): CryptoData => {
-  if (typeof data !== 'object' || data === null) {
-    throw new Error('invalid data structure');
+export const validateInput = (input: unknown): CryptoInput => {
+  if (typeof input !== 'object' || input === null) throw new Error('invalid input format');
+  const { txHash, amount, chainId } = input as any;
+
+  if (typeof txHash !== 'string' || txHash.length !== 66) throw new Error('invalid tx hash');
+  if (typeof amount !== 'bigint' && typeof amount !== 'number') throw new Error('invalid amount');
+  if (!Number.isInteger(chainId) || chainId <= 0) throw new Error('invalid chain id');
+
+  return { txHash, amount: BigInt(amount), chainId };
+};
+
+export const processTransactions = (inputs: unknown[]): CryptoInput[] => {
+  const valid: CryptoInput[] = [];
+  for (const item of inputs) {
+    try {
+      valid.push(validateInput(item));
+    } catch (err) {
+      console.error('validation error in loop:', err);
+    }
   }
-
-  const { id, price, timestamp } = data as any;
-
-  if (typeof id !== 'string' || typeof price !== 'number' || typeof timestamp !== 'number') {
-    throw new Error('malformed crypto payload');
-  }
-
-  return { id, price, timestamp };
-};
-
-export const calculatePercentageChange = (current: number, previous: number): number => {
-  if (previous === 0) return 0;
-  return ((current - previous) / previous) * 100;
-};
-
-export const aggregatePrices = (items: CryptoData[]): number => {
-  return items.reduce((acc, curr) => acc + curr.price, 0) / (items.length || 1);
+  return valid;
 };
