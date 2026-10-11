@@ -1,28 +1,26 @@
-export type CryptoInput = {
-  txHash: string;
-  amount: bigint;
-  chainId: number;
+export interface CryptoData {
+  id: string;
+  price: number;
+  timestamp: number;
+}
+
+export const normalizePrice = (value: number, precision: number = 8): number => {
+  return parseFloat(value.toFixed(precision));
 };
 
-export const validateInput = (input: unknown): CryptoInput => {
-  if (typeof input !== 'object' || input === null) throw new Error('invalid input format');
-  const { txHash, amount, chainId } = input as any;
-
-  if (typeof txHash !== 'string' || txHash.length !== 66) throw new Error('invalid tx hash');
-  if (typeof amount !== 'bigint' && typeof amount !== 'number') throw new Error('invalid amount');
-  if (!Number.isInteger(chainId) || chainId <= 0) throw new Error('invalid chain id');
-
-  return { txHash, amount: BigInt(amount), chainId };
+export const calculateChange = (current: number, previous: number): number => {
+  if (previous === 0) return 0;
+  return ((current - previous) / previous) * 100;
 };
 
-export const processTransactions = (inputs: unknown[]): CryptoInput[] => {
-  const valid: CryptoInput[] = [];
-  for (const item of inputs) {
-    try {
-      valid.push(validateInput(item));
-    } catch (err) {
-      console.error('validation error in loop:', err);
-    }
-  }
-  return valid;
+export const formatPayload = (data: Partial<CryptoData>): CryptoData => {
+  return {
+    id: data.id ?? 'unknown',
+    price: normalizePrice(data.price ?? 0),
+    timestamp: data.timestamp ?? Date.now(),
+  };
+};
+
+export const validateData = (data: CryptoData): boolean => {
+  return typeof data.price === 'number' && data.price >= 0 && data.id.length > 0;
 };
