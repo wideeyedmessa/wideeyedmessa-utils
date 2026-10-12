@@ -1,34 +1,31 @@
-export class CryptoError extends Error {
+export class CryptoServiceError extends Error {
   constructor(public message: string, public code: string) {
     super(message);
-    this.name = 'CryptoError';
+    this.name = 'CryptoServiceError';
   }
 }
 
-export const safeExecute = async <T>(operation: () => Promise<T>): Promise<T> => {
+export const handleCryptoResponse = <T>(data: unknown): T => {
+  if (data === null || typeof data !== 'object') {
+    throw new CryptoServiceError('invalid response structure', 'INVALID_RESPONSE');
+  }
+
+  if ('error' in data) {
+    const err = (data as { error: string }).error;
+    throw new CryptoServiceError(err, 'RPC_ERROR');
+  }
+
+  return data as T;
+};
+
+export const safeExecute = async <T>(fn: () => Promise<T>): Promise<T> => {
   try {
-    return await operation();
+    return await fn();
   } catch (error) {
-    if (error instanceof Error) {
-      throw new CryptoError(error.message, 'INTERNAL_EXECUTION_FAILURE');
-    }
-    throw new CryptoError('An unexpected crypto service error occurred', 'UNKNOWN_FAILURE');
+    if (error instanceof CryptoServiceError) throw error;
+    throw new CryptoServiceError(
+      error instanceof Error ? error.message : 'unknown failure',
+      'INTERNAL_FAILURE'
+    );
   }
-};
-
-export const validateTransaction = (tx: unknown): tx is { hash: string } => {
-  if (typeof tx !== 'object' || tx === null || !('hash' in tx)) {
-    throw new CryptoError('Invalid transaction format', 'VALIDATION_ERROR');
-  }
-  return true;
-};
-
-export const fetchGasPrice = async (network: string): Promise<number> => {
-  if (!network) throw new CryptoError('Missing network identifier', 'PARAM_REQUIRED');
-  
-  const response = await fetch(`https://api.${network}.com/gas`);
-  if (!response.ok) {
-    throw new CryptoError('Gas price fetch failed', 'NETWORK_FAILURE');
-  }
-  return response.json();
 };
