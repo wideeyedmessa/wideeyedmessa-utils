@@ -1,49 +1,53 @@
-import { createHash } from 'crypto';
-
-export class CryptoMemoCache<T> {
-  private cache = new Map<string, T>();
-  private readonly maxSize: number;
-
-  constructor(maxSize: number = 1024) {
-    this.maxSize = maxSize;
+export class CryptoValueError extends Error {
+  constructor(message: string, public readonly code: string) {
+    super(message);
+    this.name = 'CryptoValueError';
   }
+}
 
-  public get(key: string): T | undefined {
-    const item = this.cache.get(key);
-    if (item !== undefined) {
-      this.cache.delete(key);
-      this.cache.set(key, item);
+export function normalizeHexString(hex: string): string {
+  if (typeof hex !== 'string') {
+    throw new CryptoValueError('Input must be a string', 'INVALID_TYPE');
+  }
+  const trimmed = hex.trim().toLowerCase();
+  const sanitized = trimmed.startsWith('0x') ? trimmed.slice(2) : trimmed;
+  if (sanitized.length === 0) {
+    throw new CryptoValueError('Hex string cannot be empty', 'EMPTY_HEX');
+  }
+  if (!/^[0-9a-f]+$/i.test(sanitized)) {
+    throw new CryptoValueError('Invalid hex characters detected', 'INVALID_HEX');
+  }
+  return sanitized.length % 2 !== 0 ? `0${sanitized}` : sanitized;
+}
+
+export function parseBigIntSafe(val: unknown, fallback: bigint = 0n): bigint {
+  if (val === null || val === undefined) return fallback;
+  try {
+    if (typeof val === 'number') {
+      if (!Number.isInteger(val) || val < 0) {
+        throw new CryptoValueError('Number must be a positive integer', 'INVALID_NUMBER');
+      }
+      return BigInt(val);
     }
-    return item;
-  }
-
-  public set(key: string, value: T): void {
-    if (this.cache.size >= this.maxSize) {
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey !== undefined) {
-        this.cache.delete(oldestKey);
+    if (typeof val === 'string') {
+      const norm = val.trim();
+      if (norm.startsWith('0x') || /^\d+$/.test(norm)) {
+        return BigInt(norm);
       }
     }
-    this.cache.set(key, value);
-  }
-
-  public clear(): void {
-    this.cache.clear();
+    if (typeof val === 'bigint') return val;
+    throw new CryptoValueError('Unsupported type for BigInt conversion', 'UNSUPPORTED_TYPE');
+  } catch (err) {
+    if (err instanceof CryptoValueError) throw err;
+    return fallback;
   }
 }
 
-const hashCache = new CryptoMemoCache<string>(2048);
-
-export function fastHashPayload(data: string, algorithm = 'sha256'): string {
-  const cacheKey = `${algorithm}:${data}`;
-  const cached = hashCache.get(cacheKey);
-  if (cached) return cached;
-
-  const hash = createHash(algorithm).update(data).digest('hex');
-  hashCache.set(cacheKey, hash);
-  return hash;
-}
-
-export function batchFastHash(items: string[], algorithm = 'sha256'): string[] {
-  return items.map((item) => fastHashPayload(item, algorithm));
+export function validateAddressLength(address: string, expectedLength: number = 42): boolean {
+  try {
+    const norm = normalizeHexString(address);
+    return norm.length === expectedLength - 2;
+  } catch {
+    return false;
+  }
 }
