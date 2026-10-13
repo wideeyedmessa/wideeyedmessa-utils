@@ -1,53 +1,29 @@
-export class CryptoValueError extends Error {
-  constructor(message: string, public readonly code: string) {
-    super(message);
-    this.name = 'CryptoValueError';
+export type HashRecord = { id: string; nonce: bigint; signature: Uint8Array };
+
+const CACHE_SIZE = 1024;
+const cache = new Map<string, HashRecord>();
+
+export function memoizeHash(key: string, compute: () => HashRecord): HashRecord {
+  if (cache.size >= CACHE_SIZE) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey) cache.delete(firstKey);
   }
+  
+  if (!cache.has(key)) {
+    cache.set(key, compute());
+  }
+  return cache.get(key)!;
 }
 
-export function normalizeHexString(hex: string): string {
-  if (typeof hex !== 'string') {
-    throw new CryptoValueError('Input must be a string', 'INVALID_TYPE');
+export function batchProcessHashes(items: string[], processor: (i: string) => HashRecord): HashRecord[] {
+  const results = new Array(items.length);
+  for (let i = 0; i < items.length; i++) {
+    results[i] = memoizeHash(items[i], () => processor(items[i]));
   }
-  const trimmed = hex.trim().toLowerCase();
-  const sanitized = trimmed.startsWith('0x') ? trimmed.slice(2) : trimmed;
-  if (sanitized.length === 0) {
-    throw new CryptoValueError('Hex string cannot be empty', 'EMPTY_HEX');
-  }
-  if (!/^[0-9a-f]+$/i.test(sanitized)) {
-    throw new CryptoValueError('Invalid hex characters detected', 'INVALID_HEX');
-  }
-  return sanitized.length % 2 !== 0 ? `0${sanitized}` : sanitized;
+  return results;
 }
 
-export function parseBigIntSafe(val: unknown, fallback: bigint = 0n): bigint {
-  if (val === null || val === undefined) return fallback;
-  try {
-    if (typeof val === 'number') {
-      if (!Number.isInteger(val) || val < 0) {
-        throw new CryptoValueError('Number must be a positive integer', 'INVALID_NUMBER');
-      }
-      return BigInt(val);
-    }
-    if (typeof val === 'string') {
-      const norm = val.trim();
-      if (norm.startsWith('0x') || /^\d+$/.test(norm)) {
-        return BigInt(norm);
-      }
-    }
-    if (typeof val === 'bigint') return val;
-    throw new CryptoValueError('Unsupported type for BigInt conversion', 'UNSUPPORTED_TYPE');
-  } catch (err) {
-    if (err instanceof CryptoValueError) throw err;
-    return fallback;
-  }
-}
-
-export function validateAddressLength(address: string, expectedLength: number = 42): boolean {
-  try {
-    const norm = normalizeHexString(address);
-    return norm.length === expectedLength - 2;
-  } catch {
-    return false;
-  }
+export function validateSignature(data: HashRecord): boolean {
+  if (data.nonce < 0n) return false;
+  return data.signature.length === 64;
 }
