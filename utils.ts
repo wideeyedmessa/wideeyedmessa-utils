@@ -1,29 +1,40 @@
-export type HashRecord = { id: string; nonce: bigint; signature: Uint8Array };
-
-const CACHE_SIZE = 1024;
-const cache = new Map<string, HashRecord>();
-
-export function memoizeHash(key: string, compute: () => HashRecord): HashRecord {
-  if (cache.size >= CACHE_SIZE) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey) cache.delete(firstKey);
+export function truncateAddress(
+  address: string,
+  startChars: number = 6,
+  endChars: number = 4
+): string {
+  if (!address || address.length <= startChars + endChars) {
+    return address;
   }
-  
-  if (!cache.has(key)) {
-    cache.set(key, compute());
-  }
-  return cache.get(key)!;
+  return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
 }
 
-export function batchProcessHashes(items: string[], processor: (i: string) => HashRecord): HashRecord[] {
-  const results = new Array(items.length);
-  for (let i = 0; i < items.length; i++) {
-    results[i] = memoizeHash(items[i], () => processor(items[i]));
-  }
-  return results;
+export function isValidHex(value: string): boolean {
+  return /^0x[0-9a-fA-F]*$/.test(value);
 }
 
-export function validateSignature(data: HashRecord): boolean {
-  if (data.nonce < 0n) return false;
-  return data.signature.length === 64;
+export function isValidAddress(address: string): boolean {
+  return /^0x[0-9a-fA-F]{40}$/.test(address);
+}
+
+export function weiToEther(wei: bigint | string): string {
+  const weiBigInt = typeof wei === 'string' ? BigInt(wei) : wei;
+  const etherInt = weiBigInt / 10n ** 18n;
+  const etherDec = weiBigInt % 10n ** 18n;
+  const decStr = etherDec.toString().padStart(18, '0').replace(/0+$/, '');
+  return decStr ? `${etherInt}.${decStr}` : `${etherInt}`;
+}
+
+export function etherToWei(ether: string): bigint {
+  const [integer, decimal = ''] = ether.split('.');
+  const paddedDecimal = decimal.padEnd(18, '0').slice(0, 18);
+  return BigInt((integer || '0') + paddedDecimal);
+}
+
+export async function hashMessage(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return '0x' + hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
