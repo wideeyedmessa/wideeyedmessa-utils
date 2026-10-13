@@ -1,31 +1,37 @@
-export class CryptoServiceError extends Error {
-  constructor(public message: string, public code: string) {
-    super(message);
-    this.name = 'CryptoServiceError';
-  }
-}
+import { LRUCache } from 'lru-cache';
 
-export const handleCryptoResponse = <T>(data: unknown): T => {
-  if (data === null || typeof data !== 'object') {
-    throw new CryptoServiceError('invalid response structure', 'INVALID_RESPONSE');
-  }
+const CACHE_SIZE = 1000;
+const TTL = 1000 * 60 * 5;
 
-  if ('error' in data) {
-    const err = (data as { error: string }).error;
-    throw new CryptoServiceError(err, 'RPC_ERROR');
-  }
+const cache = new LRUCache<string, any>({
+  max: CACHE_SIZE,
+  ttl: TTL,
+});
 
-  return data as T;
+export const memoizedFetch = async <T>(
+  key: string,
+  fetcher: () => Promise<T>
+): Promise<T> => {
+  const cached = cache.get(key);
+  if (cached) return cached as T;
+
+  const result = await fetcher();
+  cache.set(key, result);
+  return result;
 };
 
-export const safeExecute = async <T>(fn: () => Promise<T>): Promise<T> => {
-  try {
-    return await fn();
-  } catch (error) {
-    if (error instanceof CryptoServiceError) throw error;
-    throw new CryptoServiceError(
-      error instanceof Error ? error.message : 'unknown failure',
-      'INTERNAL_FAILURE'
-    );
+export const batchProcess = async <T, R>(
+  items: T[],
+  processor: (batch: T[]) => Promise<R[]>
+): Promise<R[]> => {
+  const CHUNK_SIZE = 50;
+  const results: R[] = [];
+
+  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+    const batch = items.slice(i, i + CHUNK_SIZE);
+    const processed = await processor(batch);
+    results.push(...processed);
   }
+
+  return results;
 };
