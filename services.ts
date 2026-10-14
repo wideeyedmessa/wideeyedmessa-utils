@@ -1,37 +1,40 @@
-import { LRUCache } from 'lru-cache';
+import { ethers } from 'ethers';
 
-const CACHE_SIZE = 1000;
-const TTL = 1000 * 60 * 5;
-
-const cache = new LRUCache<string, any>({
-  max: CACHE_SIZE,
-  ttl: TTL,
-});
-
-export const memoizedFetch = async <T>(
-  key: string,
-  fetcher: () => Promise<T>
-): Promise<T> => {
-  const cached = cache.get(key);
-  if (cached) return cached as T;
-
-  const result = await fetcher();
-  cache.set(key, result);
-  return result;
+export const formatUnits = (value: bigint, decimals: number = 18): string => {
+  return ethers.formatUnits(value, decimals);
 };
 
-export const batchProcess = async <T, R>(
-  items: T[],
-  processor: (batch: T[]) => Promise<R[]>
-): Promise<R[]> => {
-  const CHUNK_SIZE = 50;
-  const results: R[] = [];
+export const parseUnits = (value: string, decimals: number = 18): bigint => {
+  return ethers.parseUnits(value, decimals);
+};
 
-  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-    const batch = items.slice(i, i + CHUNK_SIZE);
-    const processed = await processor(batch);
-    results.push(...processed);
+export const calculateSlippage = (amount: bigint, slippageBps: number): bigint => {
+  return (amount * BigInt(10000 - slippageBps)) / 10000n;
+};
+
+export const validateAddress = (address: string): boolean => {
+  return ethers.isAddress(address);
+};
+
+export const getGasPrice = async (provider: ethers.Provider): Promise<bigint> => {
+  const feeData = await provider.getFeeData();
+  return feeData.gasPrice ?? 0n;
+};
+
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+export const retryOperation = async <T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await sleep(delay);
+    return retryOperation(fn, retries - 1, delay);
   }
-
-  return results;
 };
