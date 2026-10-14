@@ -1,42 +1,40 @@
-export function truncateAddress(
-  address: string,
-  startChars: number = 6,
-  endChars: number = 4
-): string {
-  if (!address || address.length <= startChars + endChars) {
-    return address;
+import { ethers } from 'ethers';
+
+export const formatUnits = (value: bigint, decimals: number = 18): string => {
+  return ethers.formatUnits(value, decimals);
+};
+
+export const parseUnits = (value: string, decimals: number = 18): bigint => {
+  return ethers.parseUnits(value, decimals);
+};
+
+export const isValidAddress = (address: string): boolean => {
+  return ethers.isAddress(address);
+};
+
+export const truncateAddress = (address: string): string => {
+  if (!isValidAddress(address)) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
+
+export const calculateSlippage = (amount: bigint, slippageBps: number): bigint => {
+  return (amount * BigInt(10000 - slippageBps)) / 10000n;
+};
+
+export const delay = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+export const retry = async <T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  interval: number = 1000
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await delay(interval);
+    return retry(fn, retries - 1, interval);
   }
-  return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
-}
-
-export function isValidEthAddress(address: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(address);
-}
-
-export function formatTokenAmount(
-  rawAmount: bigint | string,
-  decimals: number = 18,
-  displayDecimals: number = 4
-): string {
-  const val = typeof rawAmount === 'string' ? BigInt(rawAmount) : rawAmount;
-  const base = BigInt(10 ** decimals);
-  const integerPart = val / base;
-  const remainder = val % base;
-
-  let fractionStr = remainder.toString().padStart(decimals, '0');
-  if (displayDecimals < decimals) {
-    fractionStr = fractionStr.slice(0, displayDecimals);
-  }
-
-  const trimmedFraction = fractionStr.replace(/0+$/, '');
-  return trimmedFraction ? `${integerPart}.${trimmedFraction}` : `${integerPart}`;
-}
-
-export function parseTokenAmount(
-  amountStr: string,
-  decimals: number = 18
-): bigint {
-  const [integer, fraction = ''] = amountStr.split('.');
-  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
-  return BigInt(`${integer}${paddedFraction}`);
-}
+};
