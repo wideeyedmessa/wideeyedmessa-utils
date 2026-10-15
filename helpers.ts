@@ -8,33 +8,27 @@ export const parseUnits = (value: string, decimals: number = 18): bigint => {
   return ethers.parseUnits(value, decimals);
 };
 
-export const isValidAddress = (address: string): boolean => {
-  return ethers.isAddress(address);
-};
-
 export const truncateAddress = (address: string): string => {
-  if (!isValidAddress(address)) return '';
+  if (!ethers.isAddress(address)) throw new Error('Invalid address');
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-export const calculateSlippage = (amount: bigint, slippageBps: number): bigint => {
-  return (amount * BigInt(10000 - slippageBps)) / 10000n;
+export const isZeroAddress = (address: string): boolean => {
+  return address === '0x0000000000000000000000000000000000000000';
+};
+
+export const calculateSlippage = (amount: bigint, slippageBasisPoints: bigint): bigint => {
+  return (amount * slippageBasisPoints) / 10000n;
 };
 
 export const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
-export const retry = async <T>(
-  fn: () => Promise<T>,
-  retries: number = 3,
-  interval: number = 1000
-): Promise<T> => {
-  try {
-    return await fn();
-  } catch (error) {
-    if (retries <= 0) throw error;
-    await delay(interval);
-    return retry(fn, retries - 1, interval);
-  }
+export const hexToNumber = (hex: string): number => {
+  return parseInt(hex, 16);
+};
+
+export const isValidSignature = (signature: string): boolean => {
+  return /^0x([A-Fa-f0-9]{130})$/.test(signature);
 };
