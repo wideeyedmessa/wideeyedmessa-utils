@@ -1,38 +1,36 @@
-export interface Transaction { id: string; amount: bigint; currency: string; }
+import { ethers } from 'ethers';
 
-/**
- * format satoshi values into human-readable bitcoin units
- */
-export const formatBtc = (sats: bigint): string => {
-  return (Number(sats) / 100_000_000).toFixed(8);
+export const formatUnits = (value: bigint, decimals: number = 18): string => {
+  return ethers.formatUnits(value, decimals);
 };
 
-/**
- * validate crypto address checksums
- */
-export const isValidAddress = (address: string): boolean => {
-  const regex = /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,59}$/;
-  return regex.test(address);
+export const parseUnits = (value: string, decimals: number = 18): bigint => {
+  return ethers.parseUnits(value, decimals);
 };
 
-/**
- * calculate fee based on satoshis per byte
- */
-export const estimateFee = (bytes: number, satPerByte: number): bigint => {
-  return BigInt(bytes) * BigInt(satPerByte);
+export const shortenAddress = (address: string): string => {
+  if (!ethers.isAddress(address)) throw new Error('Invalid address');
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-/**
- * mask sensitive wallet identifiers
- */
-export const maskIdentifier = (id: string): string => {
-  if (id.length < 8) return id;
-  return `${id.slice(0, 4)}...${id.slice(-4)}`;
+export const calculateSlippage = (amount: bigint, slippageBps: bigint): bigint => {
+  return (amount * slippageBps) / 10000n;
 };
 
-/**
- * sort transactions by timestamp property
- */
-export const sortByTimestamp = <T extends { timestamp: number }>(txs: T[]): T[] => {
-  return [...txs].sort((a, b) => b.timestamp - a.timestamp);
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+export const retry = async <T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await sleep(delay);
+    return retry(fn, retries - 1, delay);
+  }
 };
