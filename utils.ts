@@ -1,40 +1,38 @@
-export function truncateAddress(
-  address: string,
-  startChars: number = 6,
-  endChars: number = 4
-): string {
-  if (!address || address.length <= startChars + endChars) {
-    return address;
-  }
-  return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
-}
+export interface Transaction { id: string; amount: bigint; currency: string; }
 
-export function isValidHex(value: string): boolean {
-  return /^0x[0-9a-fA-F]*$/.test(value);
-}
+/**
+ * format satoshi values into human-readable bitcoin units
+ */
+export const formatBtc = (sats: bigint): string => {
+  return (Number(sats) / 100_000_000).toFixed(8);
+};
 
-export function isValidAddress(address: string): boolean {
-  return /^0x[0-9a-fA-F]{40}$/.test(address);
-}
+/**
+ * validate crypto address checksums
+ */
+export const isValidAddress = (address: string): boolean => {
+  const regex = /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,59}$/;
+  return regex.test(address);
+};
 
-export function weiToEther(wei: bigint | string): string {
-  const weiBigInt = typeof wei === 'string' ? BigInt(wei) : wei;
-  const etherInt = weiBigInt / 10n ** 18n;
-  const etherDec = weiBigInt % 10n ** 18n;
-  const decStr = etherDec.toString().padStart(18, '0').replace(/0+$/, '');
-  return decStr ? `${etherInt}.${decStr}` : `${etherInt}`;
-}
+/**
+ * calculate fee based on satoshis per byte
+ */
+export const estimateFee = (bytes: number, satPerByte: number): bigint => {
+  return BigInt(bytes) * BigInt(satPerByte);
+};
 
-export function etherToWei(ether: string): bigint {
-  const [integer, decimal = ''] = ether.split('.');
-  const paddedDecimal = decimal.padEnd(18, '0').slice(0, 18);
-  return BigInt((integer || '0') + paddedDecimal);
-}
+/**
+ * mask sensitive wallet identifiers
+ */
+export const maskIdentifier = (id: string): string => {
+  if (id.length < 8) return id;
+  return `${id.slice(0, 4)}...${id.slice(-4)}`;
+};
 
-export async function hashMessage(message: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return '0x' + hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+/**
+ * sort transactions by timestamp property
+ */
+export const sortByTimestamp = <T extends { timestamp: number }>(txs: T[]): T[] => {
+  return [...txs].sort((a, b) => b.timestamp - a.timestamp);
+};
