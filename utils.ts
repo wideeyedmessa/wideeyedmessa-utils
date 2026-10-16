@@ -1,36 +1,31 @@
-import { ethers } from 'ethers';
-
-export const formatUnits = (value: bigint, decimals: number = 18): string => {
-  return ethers.formatUnits(value, decimals);
+const CACHE_SIZE_LIMIT = 1000;
+const memoize = <T, R>(fn: (arg: T) => R): ((arg: T) => R) => {
+  const cache = new Map<T, R>();
+  return (arg: T): R => {
+    if (cache.has(arg)) return cache.get(arg)!;
+    if (cache.size >= CACHE_SIZE_LIMIT) {
+      const firstKey = cache.keys().next().value;
+      cache.delete(firstKey!);
+    }
+    const result = fn(arg);
+    cache.set(arg, result);
+    return result;
+  };
 };
 
-export const parseUnits = (value: string, decimals: number = 18): bigint => {
-  return ethers.parseUnits(value, decimals);
-};
-
-export const shortenAddress = (address: string): string => {
-  if (!ethers.isAddress(address)) throw new Error('Invalid address');
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-};
-
-export const calculateSlippage = (amount: bigint, slippageBps: bigint): bigint => {
-  return (amount * slippageBps) / 10000n;
-};
-
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
-
-export const retry = async <T>(
-  fn: () => Promise<T>,
-  retries: number = 3,
-  delay: number = 1000
-): Promise<T> => {
-  try {
-    return await fn();
-  } catch (error) {
-    if (retries <= 0) throw error;
-    await sleep(delay);
-    return retry(fn, retries - 1, delay);
+export const computeHashFast = memoize((input: string): string => {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
   }
+  return hash.toString(16);
+});
+
+export const processBatch = <T>(items: T[], batchSize: number = 500): T[][] => {
+  const result: T[][] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    result.push(items.slice(i, i + batchSize));
+  }
+  return result;
 };
