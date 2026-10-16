@@ -1,40 +1,36 @@
-import { ethers } from 'ethers';
+export interface TokenAmount {
+  raw: bigint;
+  decimals: number;
+  symbol: string;
+}
 
-export const formatUnits = (value: bigint, decimals: number = 18): string => {
-  return ethers.formatUnits(value, decimals);
-};
-
-export const parseUnits = (value: string, decimals: number = 18): bigint => {
-  return ethers.parseUnits(value, decimals);
-};
-
-export const calculateSlippage = (amount: bigint, slippageBps: number): bigint => {
-  return (amount * BigInt(10000 - slippageBps)) / 10000n;
-};
-
-export const validateAddress = (address: string): boolean => {
-  return ethers.isAddress(address);
-};
-
-export const getGasPrice = async (provider: ethers.Provider): Promise<bigint> => {
-  const feeData = await provider.getFeeData();
-  return feeData.gasPrice ?? 0n;
-};
-
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
-
-export const retryOperation = async <T>(
-  fn: () => Promise<T>,
-  retries: number = 3,
-  delay: number = 1000
-): Promise<T> => {
-  try {
-    return await fn();
-  } catch (error) {
-    if (retries <= 0) throw error;
-    await sleep(delay);
-    return retryOperation(fn, retries - 1, delay);
+export function formatAddress(address: string, digits = 4): string {
+  if (!address || address.length < digits * 2 + 2) {
+    return address;
   }
-};
+  return `${address.slice(0, digits + 2)}...${address.slice(-digits)}`;
+}
+
+export function parseUnits(value: string, decimals: number): bigint {
+  const parts = value.split('.');
+  const whole = parts[0] || '0';
+  const fraction = (parts[1] || '').padEnd(decimals, '0').slice(0, decimals);
+  return BigInt(`${whole}${fraction}`);
+}
+
+export function formatUnits(value: bigint, decimals: number): string {
+  const str = value.toString().padStart(decimals + 1, '0');
+  const integerPart = str.slice(0, -decimals) || '0';
+  const fractionalPart = str.slice(-decimals).replace(/0+$/, '');
+  return fractionalPart ? `${integerPart}.${fractionalPart}` : integerPart;
+}
+
+export function calculateGasFee(gasLimit: bigint, gasPriceGwei: number): bigint {
+  const weiPerGwei = 1000000000n;
+  const gasPriceWei = BigInt(Math.floor(gasPriceGwei)) * weiPerGwei;
+  return gasLimit * gasPriceWei;
+}
+
+export function isValidTxHash(hash: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(hash);
+}
