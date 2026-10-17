@@ -1,41 +1,42 @@
-export type ChainId = 1 | 56 | 137 | 42161 | 43114;
+export type ChainId = 1 | 137 | 42161;
 
-export type Address = `0x${string}`;
+export interface CryptoTransaction {
+  hash: string;
+  value: bigint;
+  recipient: string;
+  timestamp: number;
+}
 
-export interface Token {
-  address: Address;
-  symbol: string;
-  decimals: number;
-  name: string;
+export interface ProviderConfig {
+  rpcUrl: string;
   chainId: ChainId;
+  timeout: number;
 }
 
-export interface TokenAmount {
-  token: Token;
-  amount: bigint;
+/**
+ * Represents a standard response from crypto node providers
+ */
+export interface ProviderResponse<T> {
+  jsonrpc: "2.0";
+  id: number;
+  result?: T;
+  error?: {
+    code: number;
+    message: string;
+  };
 }
 
-export interface TransactionRequest {
-  to: Address;
-  from: Address;
-  data?: string;
-  value?: bigint;
-  gasLimit?: bigint;
-  maxFeePerGas?: bigint;
-  maxPriorityFeePerGas?: bigint;
-  chainId: ChainId;
+export type AssetMap = Record<string, bigint>;
+
+export interface WalletState {
+  address: string;
+  balances: AssetMap;
+  isSyncing: boolean;
 }
 
-export interface TransactionReceipt {
-  transactionHash: string;
-  blockNumber: number;
-  status: 'success' | 'reverted';
-  gasUsed: bigint;
-  effectiveGasPrice: bigint;
-}
-
-export interface SignaturePayload {
-  message: string;
-  signature: string;
-  signer: Address;
+export class CryptoError extends Error {
+  constructor(public code: string, message: string) {
+    super(message);
+    this.name = "CryptoError";
+  }
 }
