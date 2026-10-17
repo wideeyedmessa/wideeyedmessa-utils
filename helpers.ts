@@ -1,34 +1,38 @@
-import { ethers } from 'ethers';
+export type CryptoInput = { address: string; amount: bigint };
 
-export const formatUnits = (value: bigint, decimals: number = 18): string => {
-  return ethers.formatUnits(value, decimals);
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export const validateInput = (data: unknown): CryptoInput => {
+  if (typeof data !== 'object' || data === null) {
+    throw new ValidationError('Invalid input format');
+  }
+
+  const { address, amount } = data as Record<string, unknown>;
+
+  if (typeof address !== 'string' || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    throw new ValidationError('Invalid blockchain address');
+  }
+
+  if (typeof amount !== 'bigint' || amount <= 0n) {
+    throw new ValidationError('Amount must be a positive bigint');
+  }
+
+  return { address, amount };
 };
 
-export const parseUnits = (value: string, decimals: number = 18): bigint => {
-  return ethers.parseUnits(value, decimals);
-};
-
-export const truncateAddress = (address: string): string => {
-  if (!ethers.isAddress(address)) throw new Error('Invalid address');
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-};
-
-export const isZeroAddress = (address: string): boolean => {
-  return address === '0x0000000000000000000000000000000000000000';
-};
-
-export const calculateSlippage = (amount: bigint, slippageBasisPoints: bigint): bigint => {
-  return (amount * slippageBasisPoints) / 10000n;
-};
-
-export const delay = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
-
-export const hexToNumber = (hex: string): number => {
-  return parseInt(hex, 16);
-};
-
-export const isValidSignature = (signature: string): boolean => {
-  return /^0x([A-Fa-f0-9]{130})$/.test(signature);
+export const processInputs = (inputs: unknown[]): CryptoInput[] => {
+  const valid: CryptoInput[] = [];
+  for (const input of inputs) {
+    try {
+      valid.push(validateInput(input));
+    } catch (err) {
+      console.error(`Validation failed: ${(err as Error).message}`);
+    }
+  }
+  return valid;
 };
