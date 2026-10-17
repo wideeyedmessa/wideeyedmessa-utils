@@ -1,31 +1,47 @@
-const CACHE_SIZE_LIMIT = 1000;
-const memoize = <T, R>(fn: (arg: T) => R): ((arg: T) => R) => {
-  const cache = new Map<T, R>();
-  return (arg: T): R => {
-    if (cache.has(arg)) return cache.get(arg)!;
-    if (cache.size >= CACHE_SIZE_LIMIT) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey!);
-    }
-    const result = fn(arg);
-    cache.set(arg, result);
-    return result;
-  };
+/**
+ * Utility functions for cryptocurrency data formatting and conversion.
+ */
+
+export type UnitMap = Record<string, number>;
+
+const ETH_UNITS: UnitMap = {
+  wei: 0,
+  gwei: 9,
+  ether: 18,
 };
 
-export const computeHashFast = memoize((input: string): string => {
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash << 5) - hash + input.charCodeAt(i);
-    hash |= 0;
+/**
+ * Formats a raw crypto wallet address to a shortened representation.
+ */
+export function truncateAddress(address: string, digits: number = 4): string {
+  if (!address || address.length < digits * 2 + 2) {
+    return address;
   }
-  return hash.toString(16);
-});
+  return `${address.slice(0, digits + 2)}...${address.slice(-digits)}`;
+}
 
-export const processBatch = <T>(items: T[], batchSize: number = 500): T[][] => {
-  const result: T[][] = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    result.push(items.slice(i, i + batchSize));
+/**
+ * Checks if a given string is a valid 0x-prefixed hex string.
+ */
+export function isHexString(value: string, length?: number): boolean {
+  if (typeof value !== 'string' || !value.match(/^0x[0-9a-fA-F]*$/)) {
+    return false;
   }
-  return result;
-};
+  if (length && value.length !== 2 + length * 2) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Converts an amount from atomic units (e.g. Wei) to standard display units.
+ */
+export function formatUnits(value: bigint | string | number, decimals: number | string = 18): string {
+  const dec = typeof decimals === 'string' ? ETH_UNITS[decimals.toLowerCase()] ?? 18 : decimals;
+  const bigintValue = BigInt(value);
+  const divisor = BigInt(10 ** dec);
+  const integerPart = (bigintValue / divisor).toString();
+  const remainder = (bigintValue % divisor).toString().padStart(dec, '0');
+  const trimmedRemainder = remainder.replace(/0+$/, '');
+  return trimmedRemainder ? `${integerPart}.${trimmedRemainder}` : integerPart;
+}
