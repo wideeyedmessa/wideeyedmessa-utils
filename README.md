@@ -1,15 +1,15 @@
 # wideeyedmessa-utils
 
-`wideeyedmessa-utils` is a robust TypeScript utility library designed for high-performance cryptocurrency data processing and wallet management. It provides type-safe abstractions for handling blockchain primitives, ensuring consistency across your Web3 stack.
+`wideeyedmessa-utils` is a robust TypeScript utility library engineered for high-performance cryptocurrency data processing and cryptographic address normalization. It provides developers with a reliable toolkit to handle complex blockchain operations, ensuring type-safe interactions across multiple EVM-compatible networks.
 
-## Features
+### Features
 
-*   **Wei Conversions:** Precision-first arithmetic utilities for converting between Gwei, Ether, and Wei to prevent common rounding errors.
-*   **Address Normalization:** Built-in checksum validation and formatting utilities compliant with EIP-55 standards.
-*   **Transaction Hash Helpers:** Optimized regex and buffer validation patterns for verifying transaction integrity across EVM-compatible chains.
-*   **Zero-Dependency Core:** Lightweight architecture designed for minimal footprint in edge environments like Cloudflare Workers.
+*   **Address Normalization:** Robust utilities for validating and checksumming EIP-55 addresses to prevent common transaction errors.
+*   **Unit Conversion:** Seamless big-integer arithmetic for precise Gwei-to-Wei conversions, mitigating floating-point inaccuracies typical in JavaScript.
+*   **Signing Helpers:** Streamlined wrappers for generating and verifying ECDSA signatures compatible with common web3 providers.
+*   **Zero-Dependency Core:** Lightweight architecture focused on minimal bundle sizes, ideal for integration into edge computing environments or browser-based dApps.
 
-## Installation
+### Installation
 
 Install the package via npm or yarn:
 
@@ -19,31 +19,24 @@ npm install wideeyedmessa-utils
 yarn add wideeyedmessa-utils
 ```
 
-## Usage
+### Usage
 
 ```typescript
-import { formatWei, isValidAddress } from 'wideeyedmessa-utils';
+import { formatAddress, toWei } from 'wideeyedmessa-utils';
 
-// Validate an address
-const address = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
-console.log(isValidAddress(address)); // true
+// Normalize user input
+const rawAddress = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe";
+const cleanAddress = formatAddress(rawAddress);
 
-// Convert BigInt values to Ether string
-const balance = BigInt('1500000000000000000');
-console.log(formatWei(balance)); // "1.5"
+// Convert ETH amounts with big-int precision
+const amountInWei = toWei("1.5");
+
+console.log(`Normalized Address: ${cleanAddress}`);
+console.log(`Value in Wei: ${amountInWei.toString()}`);
 ```
 
-## Development
+### License
 
-To contribute to this utility suite:
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-1. Clone the repository.
-2. Run `npm install` to install dependencies.
-3. Use `npm run build` to compile the TypeScript source.
-4. Run `npm test` to verify changes against the current test suite.
-
-## License
-
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
