@@ -1,31 +1,32 @@
-export interface CryptoData {
-  id: string;
-  price: number;
-  timestamp: number;
+export interface RetryOptions {
+  retries: number;
+  delay: number;
 }
 
-export const formatCurrency = (amount: number, precision: number = 2): string => {
-  return amount.toFixed(precision);
+export const withRetry = async <T>(
+  fn: () => Promise<T>,
+  options: RetryOptions = { retries: 3, delay: 1000 }
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (options.retries <= 0) throw error;
+    await new Promise((resolve) => setTimeout(resolve, options.delay));
+    return withRetry(fn, {
+      ...options,
+      retries: options.retries - 1,
+    });
+  }
 };
 
-export const calculatePercentageChange = (current: number, previous: number): number => {
-  if (previous === 0) return 0;
-  return ((current - previous) / previous) * 100;
-};
-
-export const validateCryptoPayload = (data: unknown): data is CryptoData => {
-  if (typeof data !== 'object' || data === null) return false;
-  const d = data as Record<string, unknown>;
-  return (
-    typeof d.id === 'string' &&
-    typeof d.price === 'number' &&
-    typeof d.timestamp === 'number'
-  );
-};
-
-export const getMarketSummary = (assets: CryptoData[]): Record<string, number> => {
-  return assets.reduce((acc, asset) => {
-    acc[asset.id] = asset.price;
-    return acc;
-  }, {} as Record<string, number>);
+export const fetchWithRetry = async <T>(
+  input: RequestInfo,
+  init?: RequestInit,
+  options?: RetryOptions
+): Promise<T> => {
+  return withRetry(async () => {
+    const response = await fetch(input, init);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }, options);
 };
