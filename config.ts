@@ -1,21 +1,32 @@
-export interface Config {
-  rpcUrl: string;
+export interface ChainConfig {
   chainId: number;
-  retryAttempts: number;
+  rpcUrl: string;
+  nativeCurrency: string;
+  blockExplorer: string;
 }
 
-const defaults: Config = {
-  rpcUrl: 'https://mainnet.infura.io/v3/',
-  chainId: 1,
-  retryAttempts: 3,
+export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
+  mainnet: {
+    chainId: 1,
+    rpcUrl: 'https://eth.llamarpc.com',
+    nativeCurrency: 'ETH',
+    blockExplorer: 'https://etherscan.io'
+  },
+  polygon: {
+    chainId: 137,
+    rpcUrl: 'https://polygon-rpc.com',
+    nativeCurrency: 'MATIC',
+    blockExplorer: 'https://polygonscan.com'
+  }
 };
 
-export const loadConfig = (overrides: Partial<Config> = {}): Config => {
-  return {
-    ...defaults,
-    ...overrides,
-    rpcUrl: process.env.RPC_URL || overrides.rpcUrl || defaults.rpcUrl,
-    chainId: Number(process.env.CHAIN_ID) || overrides.chainId || defaults.chainId,
-    retryAttempts: Number(process.env.RETRY_ATTEMPTS) || overrides.retryAttempts || defaults.retryAttempts,
-  };
-};
+/**
+ * Configuration retrieval for network specific constants
+ */
+export function getChainConfig(network: string): ChainConfig {
+  const config = SUPPORTED_CHAINS[network];
+  if (!config) {
+    throw new Error(`unsupported network: ${network}`);
+  }
+  return config;
+}
