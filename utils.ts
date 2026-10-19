@@ -1,27 +1,34 @@
-import winston from 'winston';
-import 'winston-daily-rotate-file';
-import path from 'path';
+export const memoize = <T, R>(fn: (arg: T) => R): (arg: T) => R => {
+  const cache = new Map<T, R>();
+  return (arg: T): R => {
+    if (cache.has(arg)) return cache.get(arg)!;
+    const result = fn(arg);
+    cache.set(arg, result);
+    return result;
+  };
+};
 
-const LOG_DIR = 'logs';
+export const batchProcess = async <T, R>(items: T[], fn: (batch: T[]) => Promise<R[]>, size = 100): Promise<R[]> => {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += size) {
+    results.push(...(await fn(items.slice(i, i + size))));
+  }
+  return results;
+};
 
-const transport = new winston.transports.DailyRotateFile({
-  filename: path.join(LOG_DIR, 'crypto-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  zippedArchive: true,
-  maxSize: '20m',
-  maxFiles: '14d'
-});
+export const computeHashRate = (hashes: number, seconds: number): number => {
+  if (seconds <= 0) return 0;
+  return parseFloat((hashes / seconds).toFixed(4));
+};
 
-export const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    transport,
-    new winston.transports.Console({
-      format: winston.format.simple()
-    })
-  ]
-});
+export const sanitizeHex = (input: string): string => {
+  return input.startsWith('0x') ? input.slice(2).toLowerCase() : input.toLowerCase();
+};
+
+export const chunkBuffer = (buffer: Uint8Array, chunkSize: number): Uint8Array[] => {
+  const chunks: Uint8Array[] = [];
+  for (let i = 0; i < buffer.length; i += chunkSize) {
+    chunks.push(buffer.slice(i, i + chunkSize));
+  }
+  return chunks;
+};
