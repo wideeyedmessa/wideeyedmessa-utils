@@ -1,42 +1,22 @@
-export type ChainId = 1 | 137 | 42161;
-
-export interface CryptoTransaction {
-  hash: string;
-  value: bigint;
-  recipient: string;
-  timestamp: number;
-}
-
-export interface ProviderConfig {
-  rpcUrl: string;
-  chainId: ChainId;
-  timeout: number;
-}
-
-/**
- * Represents a standard response from crypto node providers
- */
-export interface ProviderResponse<T> {
-  jsonrpc: "2.0";
-  id: number;
-  result?: T;
-  error?: {
-    code: number;
-    message: string;
-  };
-}
-
-export type AssetMap = Record<string, bigint>;
-
-export interface WalletState {
-  address: string;
-  balances: AssetMap;
-  isSyncing: boolean;
-}
-
 export class CryptoError extends Error {
-  constructor(public code: string, message: string) {
+  constructor(public message: string, public code: string, public context?: Record<string, unknown>) {
     super(message);
-    this.name = "CryptoError";
+    this.name = 'CryptoError';
   }
 }
+
+export const handleError = (err: unknown, fallbackMessage: string): CryptoError => {
+  if (err instanceof CryptoError) return err;
+  const message = err instanceof Error ? err.message : fallbackMessage;
+  return new CryptoError(message, 'INTERNAL_ERROR', { original: err });
+};
+
+export type Result<T> = { success: true; data: T } | { success: false; error: CryptoError };
+
+export const safeExecute = async <T>(fn: () => Promise<T>): Promise<Result<T>> => {
+  try {
+    return { success: true, data: await fn() };
+  } catch (err) {
+    return { success: false, error: handleError(err, 'execution failed') };
+  }
+};
