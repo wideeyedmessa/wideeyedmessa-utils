@@ -1,38 +1,27 @@
-export type CryptoInput = { address: string; amount: bigint };
-
-export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
-  }
+export interface CryptoInput {
+  address: string;
+  amount: bigint;
+  chainId: number;
 }
 
-export const validateInput = (data: unknown): CryptoInput => {
-  if (typeof data !== 'object' || data === null) {
-    throw new ValidationError('Invalid input format');
-  }
+export const isValidInput = (input: unknown): input is CryptoInput => {
+  if (typeof input !== 'object' || input === null) return false;
+  const { address, amount, chainId } = input as Record<string, unknown>;
 
-  const { address, amount } = data as Record<string, unknown>;
+  const isAddressValid = typeof address === 'string' && /^0x[a-fA-F0-9]{40}$/.test(address);
+  const isAmountValid = typeof amount === 'bigint' && amount > 0n;
+  const isChainValid = typeof chainId === 'number' && Number.isInteger(chainId) && chainId > 0;
 
-  if (typeof address !== 'string' || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
-    throw new ValidationError('Invalid blockchain address');
-  }
-
-  if (typeof amount !== 'bigint' || amount <= 0n) {
-    throw new ValidationError('Amount must be a positive bigint');
-  }
-
-  return { address, amount };
+  return isAddressValid && isAmountValid && isChainValid;
 };
 
-export const processInputs = (inputs: unknown[]): CryptoInput[] => {
-  const valid: CryptoInput[] = [];
-  for (const input of inputs) {
-    try {
-      valid.push(validateInput(input));
-    } catch (err) {
-      console.error(`Validation failed: ${(err as Error).message}`);
-    }
+export const processCryptoQueue = (queue: unknown[]): CryptoInput[] => {
+  return queue.filter(isValidInput);
+};
+
+export const validateOrThrow = (input: unknown): CryptoInput => {
+  if (!isValidInput(input)) {
+    throw new Error('invalid crypto processing input');
   }
-  return valid;
+  return input;
 };
