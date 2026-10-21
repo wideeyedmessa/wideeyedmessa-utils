@@ -1,32 +1,44 @@
-export interface ChainConfig {
-  chainId: number;
+export interface CryptoConfig {
   rpcUrl: string;
-  nativeCurrency: string;
-  blockExplorer: string;
+  chainId: number;
+  timeoutMs: number;
+  maxRetries: number;
+  gasPriceMultiplier: number;
 }
 
-export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
-  mainnet: {
-    chainId: 1,
-    rpcUrl: 'https://eth.llamarpc.com',
-    nativeCurrency: 'ETH',
-    blockExplorer: 'https://etherscan.io'
-  },
-  polygon: {
-    chainId: 137,
-    rpcUrl: 'https://polygon-rpc.com',
-    nativeCurrency: 'MATIC',
-    blockExplorer: 'https://polygonscan.com'
-  }
+export const DEFAULT_CONFIG: CryptoConfig = {
+  rpcUrl: 'https://mainnet.infura.io/v3/default',
+  chainId: 1,
+  timeoutMs: 10000,
+  maxRetries: 3,
+  gasPriceMultiplier: 1.1,
 };
 
-/**
- * Configuration retrieval for network specific constants
- */
-export function getChainConfig(network: string): ChainConfig {
-  const config = SUPPORTED_CHAINS[network];
-  if (!config) {
-    throw new Error(`unsupported network: ${network}`);
+export class ConfigLoader {
+  private currentConfig: CryptoConfig;
+
+  constructor(initialConfig?: Partial<CryptoConfig>) {
+    this.currentConfig = { ...DEFAULT_CONFIG, ...initialConfig };
   }
-  return config;
+
+  public get<K extends keyof CryptoConfig>(key: K): CryptoConfig[K] {
+    return this.currentConfig[key];
+  }
+
+  public getConfig(): Readonly<CryptoConfig> {
+    return { ...this.currentConfig };
+  }
+
+  public updateConfig(overrides: Partial<CryptoConfig>): Readonly<CryptoConfig> {
+    this.currentConfig = {
+      ...this.currentConfig,
+      ...overrides,
+    };
+    return this.getConfig();
+  }
+
+  public reset(): Readonly<CryptoConfig> {
+    this.currentConfig = { ...DEFAULT_CONFIG };
+    return this.getConfig();
+  }
 }
