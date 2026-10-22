@@ -1,27 +1,54 @@
-export interface CryptoInput {
-  address: string;
-  amount: bigint;
-  chainId: number;
+export class LRUCache<K, V> {
+  private cache: Map<K, V> = new Map();
+  private readonly capacity: number;
+
+  constructor(capacity: number) {
+    this.capacity = capacity;
+  }
+
+  get(key: K): V | undefined {
+    if (!this.cache.has(key)) return undefined;
+    const value = this.cache.get(key)!;
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.capacity) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+    this.cache.set(key, value);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
 }
 
-export const isValidInput = (input: unknown): input is CryptoInput => {
-  if (typeof input !== 'object' || input === null) return false;
-  const { address, amount, chainId } = input as Record<string, unknown>;
+const HEX_REGEX = /^0x[a-fA-F0-9]{40}$/;
+const addressCache = new LRUCache<string, boolean>(1000);
 
-  const isAddressValid = typeof address === 'string' && /^0x[a-fA-F0-9]{40}$/.test(address);
-  const isAmountValid = typeof amount === 'bigint' && amount > 0n;
-  const isChainValid = typeof chainId === 'number' && Number.isInteger(chainId) && chainId > 0;
-
-  return isAddressValid && isAmountValid && isChainValid;
-};
-
-export const processCryptoQueue = (queue: unknown[]): CryptoInput[] => {
-  return queue.filter(isValidInput);
-};
-
-export const validateOrThrow = (input: unknown): CryptoInput => {
-  if (!isValidInput(input)) {
-    throw new Error('invalid crypto processing input');
+export function isValidAddress(address: string): boolean {
+  const cached = addressCache.get(address);
+  if (cached !== undefined) {
+    return cached;
   }
-  return input;
-};
+  const result = HEX_REGEX.test(address);
+  addressCache.set(address, result);
+  return result;
+}
+
+export function batchValidateAddresses(addresses: string[]): Record<string, boolean> {
+  const results: Record<string, boolean> = {};
+  for (let i = 0; i < addresses.length; i++) {
+    const addr = addresses[i];
+    results[addr] = isValidAddress(addr);
+  }
+  return results;
+}
