@@ -1,39 +1,40 @@
-export type Wei = bigint;
-export type Address = string;
+import { ethers } from 'ethers';
 
-export interface Transaction {
-  hash: string;
-  value: Wei;
-  to: Address;
-}
-
-/**
- * Format crypto value from Wei to decimal representation
- */
-export const formatWei = (value: Wei, decimals: number = 18): string => {
-  const divisor = 10n ** BigInt(decimals);
-  const integerPart = value / divisor;
-  const fractionalPart = (value % divisor).toString().padStart(decimals, '0');
-  return `${integerPart}.${fractionalPart.replace(/0+$/, '') || '0'}`;
+export const formatUnits = (value: bigint, decimals: number = 18): string => {
+  return ethers.formatUnits(value, decimals);
 };
 
-/**
- * Validate Ethereum-style checksum address format
- */
-export const isValidAddress = (address: string): boolean => {
-  return /^0x[a-fA-F0-9]{40}$/.test(address);
+export const parseUnits = (value: string, decimals: number = 18): bigint => {
+  return ethers.parseUnits(value, decimals);
 };
 
-/**
- * Calculate gas fee estimate based on limit and price
- */
-export const calculateGasFee = (gasLimit: bigint, gasPrice: Wei): Wei => {
-  return gasLimit * gasPrice;
+export const isAddress = (address: string): boolean => {
+  return ethers.isAddress(address);
 };
 
-/**
- * Parse hexadecimal string to big integer
- */
-export const parseHex = (hex: string): bigint => {
-  return BigInt(hex.startsWith('0x') ? hex : `0x${hex}`);
+export const getChecksumAddress = (address: string): string => {
+  return ethers.getAddress(address);
+};
+
+export const truncateAddress = (address: string, start: number = 6, end: number = 4): string => {
+  if (!isAddress(address)) return '';
+  return `${address.slice(0, start)}...${address.slice(-end)}`;
+};
+
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+export const retry = async <T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await sleep(delay);
+    return retry(fn, retries - 1, delay);
+  }
 };
