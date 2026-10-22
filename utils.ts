@@ -1,45 +1,39 @@
-export interface FormattingOptions {
-  decimals?: number;
-  symbol?: string;
-  displayDecimals?: number;
+export type Wei = bigint;
+export type Address = string;
+
+export interface Transaction {
+  hash: string;
+  value: Wei;
+  to: Address;
 }
 
-export function isValidEthAddress(address: string): boolean {
+/**
+ * Format crypto value from Wei to decimal representation
+ */
+export const formatWei = (value: Wei, decimals: number = 18): string => {
+  const divisor = 10n ** BigInt(decimals);
+  const integerPart = value / divisor;
+  const fractionalPart = (value % divisor).toString().padStart(decimals, '0');
+  return `${integerPart}.${fractionalPart.replace(/0+$/, '') || '0'}`;
+};
+
+/**
+ * Validate Ethereum-style checksum address format
+ */
+export const isValidAddress = (address: string): boolean => {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
-}
+};
 
-export function truncateAddress(
-  address: string,
-  startChars = 6,
-  endChars = 4
-): string {
-  if (!address) return '';
-  if (address.length <= startChars + endChars) return address;
-  return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
-}
+/**
+ * Calculate gas fee estimate based on limit and price
+ */
+export const calculateGasFee = (gasLimit: bigint, gasPrice: Wei): Wei => {
+  return gasLimit * gasPrice;
+};
 
-export function formatTokenAmount(
-  rawAmount: bigint | string,
-  decimals = 18,
-  displayDecimals = 4
-): string {
-  const value = BigInt(rawAmount);
-  const base = BigInt(10 ** decimals);
-  const integerPart = value / base;
-  const remainder = value % base;
-
-  if (remainder === 0n) {
-    return integerPart.toString();
-  }
-
-  const remainderStr = remainder.toString().padStart(decimals, '0');
-  const trimmed = remainderStr.slice(0, displayDecimals).replace(/0+$/, '');
-
-  return trimmed ? `${integerPart}.${trimmed}` : integerPart.toString();
-}
-
-export function parseTokenAmount(amount: string, decimals = 18): bigint {
-  const [integer, fraction = ''] = amount.split('.');
-  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
-  return BigInt(integer + paddedFraction);
-}
+/**
+ * Parse hexadecimal string to big integer
+ */
+export const parseHex = (hex: string): bigint => {
+  return BigInt(hex.startsWith('0x') ? hex : `0x${hex}`);
+};
