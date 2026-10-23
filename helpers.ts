@@ -1,53 +1,68 @@
-/**
- * Truncates a cryptographic hash or wallet address for display purposes.
- *
- * @param address - The full hex string or wallet address.
- * @param startChars - Number of leading characters to keep.
- * @param endChars - Number of trailing characters to keep.
- * @returns Formatted shortened string representation.
- */
-export function formatAddress(
-  address: string,
-  startChars: number = 6,
-  endChars: number = 4
-): string {
-  if (!address || address.length <= startChars + endChars) {
-    return address;
-  }
-  return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
+import * as fs from 'fs';
+import * as path from 'path';
+
+export interface LoggerOptions {
+  logDir: string;
+  maxSizeBytes?: number;
+  maxFiles?: number;
 }
 
-/**
- * Validates whether a given string is a valid 0x-prefixed hex string.
- *
- * @param value - The input string to check.
- * @param expectedLength - Optional byte length to strictly check against.
- * @returns True if valid hex string, false otherwise.
- */
-export function isValidHexString(
-  value: string,
-  expectedLength?: number
-): boolean {
-  if (!/^0x[0-9a-fA-F]*$/.test(value)) {
-    return false;
-  }
-  if (expectedLength !== undefined) {
-    const rawHex = value.slice(2);
-    return rawHex.length === expectedLength * 2;
-  }
-  return value.length % 2 === 0;
-}
+export class RotatingLogger {
+  private logDir: string;
+  private maxSizeBytes: number;
+  private maxFiles: number;
+  private currentFile: string;
 
-/**
- * Converts a Uint8Array buffer into a 0x-prefixed hexadecimal string.
- *
- * @param buffer - The byte array to encode.
- * @returns 0x-prefixed hex string representation.
- */
-export function bytesToHex(buffer: Uint8Array): string {
-  const hexParts: string[] = new Array(buffer.length);
-  for (let i = 0; i < buffer.length; i++) {
-    hexParts[i] = buffer[i].toString(16).padStart(2, '0');
+  constructor(options: LoggerOptions) {
+    this.logDir = options.logDir;
+    this.maxSizeBytes = options.maxSizeBytes ?? 5 * 1024 * 1024;
+    this.maxFiles = options.maxFiles ?? 5;
+    this.currentFile = path.join(this.logDir, 'crypto-utils.log');
+    this.ensureDir();
   }
-  return `0x${hexParts.join('')}`;
+
+  private ensureDir(): void {
+    if (!fs.existsSync(this.logDir)) {
+      fs.mkdirSync(this.logDir, { recursive: true });
+    }
+  }
+
+  private rotate(): void {
+    if (!fs.existsSync(this.currentFile)) return;
+    const stats = fs.statSync(this.currentFile);
+    if (stats.size < this.maxSizeBytes) return;
+
+    for (let i = this.maxFiles - 1; i >= 1; i--) {
+      const oldFile = path.join(this.logDir, `crypto-utils.${i}.log`);
+      const newFile = path.join(this.logDir, `crypto-utils.${i + 1}.log`);
+      if (fs.existsSync(oldFile)) {
+        if (i + 1 > this.maxFiles) {
+          fs.unlinkSync(oldFile);
+        } else {
+          fs.renameSync(oldFile, newFile);
+        }
+      }
+    }
+    fs.renameSync(this.currentFile, path.join(this.logDir, 'crypto-utils.1.log'));
+  }
+
+  public log(level: 'INFO' | 'WARN' | 'ERROR', message: string, meta?: Record<string, unknown>): void {
+    this.rotate();
+    const timestamp = new Date().toISOString();
+    const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
+    const entry = `[${timestamp}] [${level}] ${message}${metaStr}\n`;
+    fs.appendFileSync(this.currentFile, entry, 'utf-8');
+  }
+
+  public info(message: string, meta?: Record<string, unknown>): void {
+    this.log('INFO', message, meta);
+  }
+
+  public warn(message: string, meta?: Record<string, unknown>): void {
+    this.log('WARN', message, meta);
+  }
+
+  public error(message: string, meta?: Record<string, unknown>): void {
+    this.log('ERROR', message, meta);
+  }
 }
