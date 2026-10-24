@@ -1,45 +1,31 @@
-export type CryptoAlgorithm = 'sha256' | 'sha512' | 'ripemd160' | 'aes-256-gcm';
-
-export type NetworkType = 'mainnet' | 'testnet' | 'devnet';
-
-export interface KeyPair {
-  publicKey: string;
-  privateKey: string;
-  network: NetworkType;
+export class CryptoError extends Error {
+  constructor(public message: string, public code: string, public context?: Record<string, unknown>) {
+    super(message);
+    this.name = 'CryptoError';
+  }
 }
 
-export interface HashOptions {
-  algorithm: CryptoAlgorithm;
-  encoding?: 'hex' | 'base64' | 'utf8';
-  salt?: string;
-}
+export const handleCryptoOp = <T>(fn: () => T): T => {
+  try {
+    return fn();
+  } catch (err) {
+    if (err instanceof Error) {
+      throw new CryptoError(err.message, 'EXECUTION_FAILURE', { original: err.stack });
+    }
+    throw new CryptoError('Unknown crypto operation error', 'UNKNOWN_FAILURE');
+  }
+};
 
-export interface TransactionPayload {
-  sender: string;
-  recipient: string;
-  amount: bigint;
-  fee: bigint;
-  nonce: number;
-  signature?: string;
-  timestamp: number;
-}
+export type ValidationResult = 
+  | { success: true; data: string }
+  | { success: false; error: CryptoError };
 
-export interface SignatureResult {
-  signature: string;
-  publicKey: string;
-  recoveryId?: number;
-}
-
-export interface AddressValidationResult {
-  isValid: boolean;
-  network?: NetworkType;
-  addressType?: 'p2pkh' | 'p2sh' | 'bech32' | 'ed25519';
-  error?: string;
-}
-
-export interface EncryptedData {
-  ciphertext: string;
-  iv: string;
-  tag: string;
-  algorithm: CryptoAlgorithm;
-}
+export const validateHex = (input: string): ValidationResult => {
+  if (!/^[0-9a-fA-F]+$/.test(input)) {
+    return {
+      success: false,
+      error: new CryptoError('Invalid hex format', 'INVALID_HEX_ENCODING')
+    };
+  }
+  return { success: true, data: input.toLowerCase() };
+};
