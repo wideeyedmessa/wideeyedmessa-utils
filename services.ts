@@ -1,36 +1,38 @@
-export interface TokenAmount {
-  raw: bigint;
-  decimals: number;
-  symbol: string;
+export interface RetryOptions {
+  maxRetries?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+  backoffFactor?: number;
 }
 
-export function formatAddress(address: string, digits = 4): string {
-  if (!address || address.length < digits * 2 + 2) {
-    return address;
+export class CryptoNetworkService {
+  private readonly defaultOptions: Required<RetryOptions> = {
+    maxRetries: 3,
+    initialDelayMs: 500,
+    maxDelayMs: 10000,
+    backoffFactor: 2,
+  };
+
+  async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    options?: RetryOptions
+  ): Promise<T> {
+    const config = { ...this.defaultOptions, ...options };
+    let delay = config.initialDelayMs;
+
+    for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt === config.maxRetries) {
+          const msg = error instanceof Error ? error.message : String(error);
+          throw new Error(`Network call failed after ${config.maxRetries} retries: ${msg}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay = Math.min(delay * config.backoffFactor, config.maxDelayMs);
+      }
+    }
+
+    throw new Error("Execution failed unexpectedly");
   }
-  return `${address.slice(0, digits + 2)}...${address.slice(-digits)}`;
-}
-
-export function parseUnits(value: string, decimals: number): bigint {
-  const parts = value.split('.');
-  const whole = parts[0] || '0';
-  const fraction = (parts[1] || '').padEnd(decimals, '0').slice(0, decimals);
-  return BigInt(`${whole}${fraction}`);
-}
-
-export function formatUnits(value: bigint, decimals: number): string {
-  const str = value.toString().padStart(decimals + 1, '0');
-  const integerPart = str.slice(0, -decimals) || '0';
-  const fractionalPart = str.slice(-decimals).replace(/0+$/, '');
-  return fractionalPart ? `${integerPart}.${fractionalPart}` : integerPart;
-}
-
-export function calculateGasFee(gasLimit: bigint, gasPriceGwei: number): bigint {
-  const weiPerGwei = 1000000000n;
-  const gasPriceWei = BigInt(Math.floor(gasPriceGwei)) * weiPerGwei;
-  return gasLimit * gasPriceWei;
-}
-
-export function isValidTxHash(hash: string): boolean {
-  return /^0x[a-fA-F0-9]{64}$/.test(hash);
 }
