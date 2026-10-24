@@ -1,22 +1,45 @@
-export class CryptoError extends Error {
-  constructor(public message: string, public code: string, public context?: Record<string, unknown>) {
-    super(message);
-    this.name = 'CryptoError';
-  }
+export type CryptoAlgorithm = 'sha256' | 'sha512' | 'ripemd160' | 'aes-256-gcm';
+
+export type NetworkType = 'mainnet' | 'testnet' | 'devnet';
+
+export interface KeyPair {
+  publicKey: string;
+  privateKey: string;
+  network: NetworkType;
 }
 
-export const handleError = (err: unknown, fallbackMessage: string): CryptoError => {
-  if (err instanceof CryptoError) return err;
-  const message = err instanceof Error ? err.message : fallbackMessage;
-  return new CryptoError(message, 'INTERNAL_ERROR', { original: err });
-};
+export interface HashOptions {
+  algorithm: CryptoAlgorithm;
+  encoding?: 'hex' | 'base64' | 'utf8';
+  salt?: string;
+}
 
-export type Result<T> = { success: true; data: T } | { success: false; error: CryptoError };
+export interface TransactionPayload {
+  sender: string;
+  recipient: string;
+  amount: bigint;
+  fee: bigint;
+  nonce: number;
+  signature?: string;
+  timestamp: number;
+}
 
-export const safeExecute = async <T>(fn: () => Promise<T>): Promise<Result<T>> => {
-  try {
-    return { success: true, data: await fn() };
-  } catch (err) {
-    return { success: false, error: handleError(err, 'execution failed') };
-  }
-};
+export interface SignatureResult {
+  signature: string;
+  publicKey: string;
+  recoveryId?: number;
+}
+
+export interface AddressValidationResult {
+  isValid: boolean;
+  network?: NetworkType;
+  addressType?: 'p2pkh' | 'p2sh' | 'bech32' | 'ed25519';
+  error?: string;
+}
+
+export interface EncryptedData {
+  ciphertext: string;
+  iv: string;
+  tag: string;
+  algorithm: CryptoAlgorithm;
+}
