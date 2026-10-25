@@ -1,44 +1,27 @@
-export interface CryptoConfig {
+import { readFileSync } from 'fs';
+
+interface Config {
   rpcUrl: string;
   chainId: number;
-  timeoutMs: number;
-  maxRetries: number;
-  gasPriceMultiplier: number;
+  timeout: number;
 }
 
-export const DEFAULT_CONFIG: CryptoConfig = {
+const defaults: Config = {
   rpcUrl: 'https://mainnet.infura.io/v3/default',
   chainId: 1,
-  timeoutMs: 10000,
-  maxRetries: 3,
-  gasPriceMultiplier: 1.1,
+  timeout: 5000,
 };
 
-export class ConfigLoader {
-  private currentConfig: CryptoConfig;
+export const loadConfig = (path?: string): Config => {
+  if (!path) return defaults;
 
-  constructor(initialConfig?: Partial<CryptoConfig>) {
-    this.currentConfig = { ...DEFAULT_CONFIG, ...initialConfig };
+  try {
+    const file = readFileSync(path, 'utf-8');
+    const parsed = JSON.parse(file);
+    return { ...defaults, ...parsed };
+  } catch (error) {
+    return defaults;
   }
+};
 
-  public get<K extends keyof CryptoConfig>(key: K): CryptoConfig[K] {
-    return this.currentConfig[key];
-  }
-
-  public getConfig(): Readonly<CryptoConfig> {
-    return { ...this.currentConfig };
-  }
-
-  public updateConfig(overrides: Partial<CryptoConfig>): Readonly<CryptoConfig> {
-    this.currentConfig = {
-      ...this.currentConfig,
-      ...overrides,
-    };
-    return this.getConfig();
-  }
-
-  public reset(): Readonly<CryptoConfig> {
-    this.currentConfig = { ...DEFAULT_CONFIG };
-    return this.getConfig();
-  }
-}
+export const config: Config = loadConfig(process.env.CONFIG_PATH);
