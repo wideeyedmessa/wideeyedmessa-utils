@@ -1,23 +1,27 @@
-export type RetryConfig = {
+export interface RetryOptions {
   maxAttempts: number;
   delayMs: number;
-};
+}
 
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  config: RetryConfig = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: Error;
+export const retry = async <T>(
+  fn: () => Promise<T>,
+  { maxAttempts, delayMs }: RetryOptions
+): Promise<T> => {
+  let lastError: unknown;
 
-  for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await operation();
+      return await fn();
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      if (attempt === config.maxAttempts) break;
-      await new Promise((resolve) => setTimeout(resolve, config.delayMs));
+      lastError = err;
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
 
-  throw lastError!;
-}
+  throw lastError;
+};
+
+export const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
