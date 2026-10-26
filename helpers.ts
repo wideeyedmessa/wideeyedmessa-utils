@@ -1,24 +1,30 @@
-export const memoizeBigInt = <T extends (...args: any[]) => any>(fn: T): T => {
-  const cache = new Map<string, ReturnType<T>>();
-  return ((...args: Parameters<T>): ReturnType<T> => {
-    const key = JSON.stringify(args, (_, v) => (typeof v === 'bigint' ? v.toString() : v));
-    if (cache.has(key)) return cache.get(key)!;
-    const result = fn(...args);
-    cache.set(key, result);
-    return result;
-  }) as T;
+export type CryptoAmount = { raw: string; decimals: number };
+
+export const formatUnits = (value: string, decimals: number): number => {
+  return parseInt(value) / Math.pow(10, decimals);
 };
 
-export const batchProcess = async <T, R>(items: T[], fn: (batch: T[]) => Promise<R[]>, size: number = 50): Promise<R[]> => {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += size) {
-    results.push(...(await fn(items.slice(i, i + size))));
-  }
-  return results;
+export const toWei = (amount: number, decimals: number): bigint => {
+  const factor = BigInt(Math.pow(10, decimals));
+  return BigInt(Math.floor(amount * Math.pow(10, decimals)));
 };
 
-export const hashData = async (data: string): Promise<string> => {
-  const encoder = new TextEncoder();
-  const buffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
-  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+export const validateAddress = (address: string): boolean => {
+  return /^0x[a-fA-F0-9]{40}$/.test(address);
+};
+
+export const calculatePercentage = (
+  amount: CryptoAmount,
+  percent: number
+): bigint => {
+  const rawValue = BigInt(amount.raw);
+  return (rawValue * BigInt(percent * 100)) / 10000n;
+};
+
+export const parseCryptoBalance = (data: CryptoAmount): string => {
+  const result = formatUnits(data.raw, data.decimals);
+  return result.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: data.decimals
+  });
 };
