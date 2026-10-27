@@ -1,13 +1,13 @@
 # wideeyedmessa-utils
 
-`wideeyedmessa-utils` is a robust TypeScript utility library engineered for high-performance cryptocurrency data processing and cryptographic address normalization. It provides developers with a reliable toolkit to handle complex blockchain operations, ensuring type-safe interactions across multiple EVM-compatible networks.
+`wideeyedmessa-utils` is a high-performance TypeScript toolkit designed for EVM-based blockchain integration and data normalization. It streamlines common cryptographic operations and RPC interactions, providing a type-safe foundation for complex decentralized applications.
 
 ### Features
 
-*   **Address Normalization:** Robust utilities for validating and checksumming EIP-55 addresses to prevent common transaction errors.
-*   **Unit Conversion:** Seamless big-integer arithmetic for precise Gwei-to-Wei conversions, mitigating floating-point inaccuracies typical in JavaScript.
-*   **Signing Helpers:** Streamlined wrappers for generating and verifying ECDSA signatures compatible with common web3 providers.
-*   **Zero-Dependency Core:** Lightweight architecture focused on minimal bundle sizes, ideal for integration into edge computing environments or browser-based dApps.
+*   **EIP-712 Signing Utilities:** Abstracted methods for standardized typed data signing, ensuring compatibility with MetaMask and WalletConnect.
+*   **Precision Math Wrappers:** Specialized `BigInt` arithmetic functions to handle wei-to-ether conversions and fix floating-point rounding errors common in Solidity interactions.
+*   **ABI Decoding Helpers:** Lightweight, zero-dependency decoders for parsing custom event logs and error signatures without bloating your bundle with full web3.js/ethers.js stacks.
+*   **Retry Logic Middleware:** Configurable exponential backoff patterns for fetching data from unreliable RPC providers or subgraphs.
 
 ### Installation
 
@@ -19,24 +19,30 @@ npm install wideeyedmessa-utils
 yarn add wideeyedmessa-utils
 ```
 
-### Usage
+### Basic Usage
+
+Import the utility suite to handle chain-specific data transformation or signing requirements:
 
 ```typescript
-import { formatAddress, toWei } from 'wideeyedmessa-utils';
+import { formatUnits, signTypedData } from 'wideeyedmessa-utils';
 
-// Normalize user input
-const rawAddress = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe";
-const cleanAddress = formatAddress(rawAddress);
+// Format raw BigInt from contract call to readable string
+const balance = formatUnits(1250000000000000000n, 18);
+console.log(`Balance: ${balance} ETH`);
 
-// Convert ETH amounts with big-int precision
-const amountInWei = toWei("1.5");
-
-console.log(`Normalized Address: ${cleanAddress}`);
-console.log(`Value in Wei: ${amountInWei.toString()}`);
+// Simplified signing flow
+const signature = await signTypedData({
+  domain: { name: 'DApp', chainId: 1 },
+  message: { user: '0xabc...' },
+  primaryType: 'Auth'
+});
 ```
+
+### Development
+This library is built with strict TypeScript configurations to ensure full type inference when working with Ethers v6 or Viem interfaces.
 
 ### License
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
