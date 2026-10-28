@@ -1,40 +1,66 @@
-import { createHash } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 
-export interface FormatAddressOptions {
-  leading?: number;
-  trailing?: number;
+export interface LoggerOptions {
+  logDir: string;
+  maxSizeBytes?: number;
+  maxFiles?: number;
 }
 
-export function truncateAddress(address: string, options: FormatAddressOptions = {}): string {
-  const leading = options.leading ?? 6;
-  const trailing = options.trailing ?? 4;
+export class CryptoLogger {
+  private logDir: string;
+  private maxSizeBytes: number;
+  private maxFiles: number;
+  private currentFilePath: string;
 
-  if (!address || address.length <= leading + trailing) {
-    return address;
+  constructor(options: LoggerOptions) {
+    this.logDir = options.logDir;
+    this.maxSizeBytes = options.maxSizeBytes ?? 5 * 1024 * 1024;
+    this.maxFiles = options.maxFiles ?? 5;
+    this.currentFilePath = path.join(this.logDir, 'crypto-utils.log');
+    this.ensureDirectory();
   }
-  return `${address.slice(0, leading)}...${address.slice(-trailing)}`;
-}
 
-export function isValidEthAddress(address: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(address);
-}
+  private ensureDirectory(): void {
+    if (!fs.existsSync(this.logDir)) {
+      fs.mkdirSync(this.logDir, { recursive: true });
+    }
+  }
 
-export function formatUnits(amount: bigint | string | number, decimals: number = 18): string {
-  const value = BigInt(amount);
-  const divisor = BigInt(10 ** decimals);
-  const integerPart = value / divisor;
-  const fractionalPart = value % divisor;
+  private rotateLogsIfNeeded(): void {
+    if (!fs.existsSync(this.currentFilePath)) return;
 
-  const paddedFraction = fractionalPart.toString().padStart(decimals, '0').replace(/0+$/, '');
-  return paddedFraction ? `${integerPart}.${paddedFraction}` : integerPart.toString();
-}
+    const stats = fs.statSync(this.currentFilePath);
+    if (stats.size < this.maxSizeBytes) return;
 
-export function parseUnits(amount: string, decimals: number = 18): bigint {
-  const [integerPart, fractionalPart = ''] = amount.split('.');
-  const paddedFraction = fractionalPart.padEnd(decimals, '0').slice(0, decimals);
-  return BigInt(integerPart + paddedFraction);
-}
+    for (let i = this.maxFiles - 1; i >= 1; i--) {
+      const oldFile = path.join(this.logDir, `crypto-utils.${i}.log`);
+      const newFile = path.join(this.logDir, `crypto-utils.${i + 1}.log`);
+      if (fs.existsSync(oldFile)) {
+        if (i + 1 > this.maxFiles) {
+          fs.unlinkSync(oldFile);
+        } else {
+          fs.renameSync(oldFile, newFile);
+        }
+      }
+    }
 
-export function sha256Hash(data: string): string {
-  return createHash('sha256').update(data).digest('hex');
+    fs.renameSync(this.currentFilePath, path.join(this.logDir, 'crypto-utils.1.log'));
+  }
+
+  public log(level: 'INFO' | 'WARN' | 'ERROR', message: string, meta?: Record<string, unknown>): void {
+    this.rotateLogsIfNeeded();
+    const timestamp = new Date().toISOString();
+    const payload = meta ? ` ${JSON.stringify(meta)}` : '';
+    const line = `[${timestamp}] [${level}] ${message}${payload}\n`;
+    fs.appendFileSync(this.currentFilePath, line, 'utf8');
+  }
+
+  public info(message: string, meta?: Record<string, unknown>): void {
+    this.log('INFO', message, meta);
+  }
+
+  public error(message: string, meta?: Record<string, unknown>): void {
+    this.log('ERROR', message, meta);
+  }
 }
