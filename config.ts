@@ -1,27 +1,25 @@
-import { readFileSync } from 'fs';
-
-interface Config {
+export interface ChainConfig {
   rpcUrl: string;
   chainId: number;
-  timeout: number;
+  wsUrl: string;
 }
 
-const defaults: Config = {
-  rpcUrl: 'https://mainnet.infura.io/v3/default',
-  chainId: 1,
-  timeout: 5000,
-};
-
-export const loadConfig = (path?: string): Config => {
-  if (!path) return defaults;
-
-  try {
-    const file = readFileSync(path, 'utf-8');
-    const parsed = JSON.parse(file);
-    return { ...defaults, ...parsed };
-  } catch (error) {
-    return defaults;
+export const NETWORKS: Record<string, ChainConfig> = {
+  mainnet: {
+    rpcUrl: 'https://eth.llamarpc.com',
+    chainId: 1,
+    wsUrl: 'wss://eth.drpc.org'
+  },
+  arbitrum: {
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    chainId: 42161,
+    wsUrl: 'wss://arb1.arbitrum.io/feed'
   }
 };
 
-export const config: Config = loadConfig(process.env.CONFIG_PATH);
+export const DEFAULT_TIMEOUT_MS = 5000;
+export const MAX_RETRY_ATTEMPTS = 3;
+
+export const validateConfig = (chain: string): boolean => {
+  return Object.keys(NETWORKS).includes(chain);
+};
