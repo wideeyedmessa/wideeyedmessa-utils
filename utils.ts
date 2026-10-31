@@ -1,24 +1,36 @@
-export async function retry<T>(
+export class CryptoError extends Error {
+  constructor(public code: string, message: string) {
+    super(message);
+    this.name = 'CryptoError';
+  }
+}
+
+export const validateAddress = (address: string): boolean => {
+  if (!address || typeof address !== 'string') {
+    throw new CryptoError('INVALID_INPUT', 'address must be a non-empty string');
+  }
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    throw new CryptoError('MALFORMED_ADDRESS', 'invalid hex address format');
+  }
+  return true;
+};
+
+export const safeParse = <T>(data: string): T | null => {
+  try {
+    return JSON.parse(data) as T;
+  } catch {
+    return null;
+  }
+};
+
+export const handleRetry = async <T>(
   fn: () => Promise<T>,
-  retries: number = 3,
-  delay: number = 1000
-): Promise<T> {
+  retries: number = 3
+): Promise<T> => {
   try {
     return await fn();
   } catch (error) {
     if (retries <= 0) throw error;
-    await new Promise((resolve) => setTimeout(resolve, delay));
-    return retry(fn, retries - 1, delay * 2);
+    return handleRetry(fn, retries - 1);
   }
-}
-
-export const withTimeout = <T>(
-  promise: Promise<T>,
-  ms: number,
-  errorMsg: string = 'operation timed out'
-): Promise<T> => {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(errorMsg)), ms)
-  );
-  return Promise.race([promise, timeout]);
 };
