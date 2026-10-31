@@ -1,34 +1,24 @@
-import { ethers } from 'ethers';
-
-export const formatUnits = (value: bigint, decimals: number = 18): string => {
-  return ethers.formatUnits(value, decimals);
-};
-
-export const parseUnits = (value: string, decimals: number = 18): bigint => {
-  return ethers.parseUnits(value, decimals);
-};
-
-export const truncateAddress = (address: string): string => {
-  if (!ethers.isAddress(address)) return '';
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-};
-
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
-
-export const calculateSlippage = (amount: bigint, slippageBasisPoints: bigint): bigint => {
-  return (amount * slippageBasisPoints) / 10000n;
-};
-
-export const isZeroAddress = (address: string): boolean => {
-  return address === ethers.ZeroAddress;
-};
-
-export const validateSignature = (message: string, signature: string, address: string): boolean => {
+export async function retry<T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 1000
+): Promise<T> {
   try {
-    return ethers.verifyMessage(message, signature).toLowerCase() === address.toLowerCase();
-  } catch {
-    return false;
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return retry(fn, retries - 1, delay * 2);
   }
+}
+
+export const withTimeout = <T>(
+  promise: Promise<T>,
+  ms: number,
+  errorMsg: string = 'operation timed out'
+): Promise<T> => {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(errorMsg)), ms)
+  );
+  return Promise.race([promise, timeout]);
 };
