@@ -1,25 +1,25 @@
-export interface ChainConfig {
+export interface Config {
   rpcUrl: string;
   chainId: number;
-  wsUrl: string;
+  timeoutMs: number;
 }
 
-export const NETWORKS: Record<string, ChainConfig> = {
-  mainnet: {
-    rpcUrl: 'https://eth.llamarpc.com',
-    chainId: 1,
-    wsUrl: 'wss://eth.drpc.org'
-  },
-  arbitrum: {
-    rpcUrl: 'https://arb1.arbitrum.io/rpc',
-    chainId: 42161,
-    wsUrl: 'wss://arb1.arbitrum.io/feed'
-  }
+const defaults: Config = {
+  rpcUrl: 'https://mainnet.infura.io/v3/',
+  chainId: 1,
+  timeoutMs: 5000,
 };
 
-export const DEFAULT_TIMEOUT_MS = 5000;
-export const MAX_RETRY_ATTEMPTS = 3;
+export const loadConfig = (overrides: Partial<Config> = {}): Config => ({
+  ...defaults,
+  ...overrides,
+});
 
-export const validateConfig = (chain: string): boolean => {
-  return Object.keys(NETWORKS).includes(chain);
+export const getEnvConfig = (): Config => {
+  const env = process.env;
+  return loadConfig({
+    rpcUrl: env.RPC_URL,
+    chainId: env.CHAIN_ID ? parseInt(env.CHAIN_ID, 10) : undefined,
+    timeoutMs: env.TIMEOUT_MS ? parseInt(env.TIMEOUT_MS, 10) : undefined,
+  });
 };
