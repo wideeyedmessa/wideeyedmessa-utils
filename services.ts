@@ -1,34 +1,46 @@
-import { ethers } from 'ethers';
+export function formatTxHash(hash: string): string {
+  const cleanHash = hash.startsWith('0x') ? hash.slice(2) : hash;
+  return `0x${cleanHash.toLowerCase()}`;
+}
 
-export const formatUnits = (value: bigint, decimals: number): string => {
-  return ethers.formatUnits(value, decimals);
-};
+export function satoshiToBtc(satoshis: bigint | number): string {
+  const sats = BigInt(satoshis);
+  const btc = Number(sats) / 1e8;
+  return btc.toFixed(8);
+}
 
-export const parseUnits = (value: string, decimals: number): bigint => {
-  return ethers.parseUnits(value, decimals);
-};
+export function btcToSatoshi(btc: number): bigint {
+  if (btc < 0) throw new Error('BTC amount cannot be negative');
+  return BigInt(Math.round(btc * 1e8));
+}
 
-export const getProvider = (rpcUrl: string): ethers.JsonRpcProvider => {
-  return new ethers.JsonRpcProvider(rpcUrl);
-};
+export function isHex(value: string): boolean {
+  return /^0x[0-9a-fA-F]+$/.test(value) || /^[0-9a-fA-F]+$/.test(value);
+}
 
-export const getContract = (address: string, abi: any, signerOrProvider: ethers.Signer | ethers.Provider) => {
-  return new ethers.Contract(address, abi, signerOrProvider);
-};
+export function truncateAddress(address: string, chars = 4): string {
+  if (!address || address.length <= chars * 2 + 2) {
+    return address;
+  }
+  const prefix = address.startsWith('0x') ? address.slice(0, chars + 2) : address.slice(0, chars);
+  const suffix = address.slice(-chars);
+  return `${prefix}...${suffix}`;
+}
 
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
+export interface CryptoServiceConfig {
+  network: 'mainnet' | 'testnet';
+  rpcUrl: string;
+  timeoutMs: number;
+}
 
-export const sanitizeAddress = (address: string): string => {
-  return ethers.getAddress(address);
-};
+export class CryptoService {
+  private config: CryptoServiceConfig;
 
-export const estimateGasLimit = async (
-  contract: ethers.Contract,
-  method: string,
-  args: any[]
-): Promise<bigint> => {
-  const gas = await contract.getFunction(method).estimateGas(...args);
-  return (gas * 120n) / 100n;
-};
+  constructor(config: CryptoServiceConfig) {
+    this.config = config;
+  }
+
+  public getNetworkInfo(): string {
+    return `${this.config.network}:${this.config.rpcUrl}`;
+  }
+}
