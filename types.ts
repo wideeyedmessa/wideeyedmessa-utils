@@ -1,34 +1,37 @@
 export interface CryptoData {
+  id: string;
   symbol: string;
-  price: number;
-  timestamp: number;
+  priceUsd: number;
   volume24h: number;
+  timestamp: number;
 }
 
-export interface MarketStats {
-  totalVolume: number;
-  averagePrice: number;
-  count: number;
+export type PriceMap = Record<string, number>;
+
+export interface CryptoResponse {
+  success: boolean;
+  data: CryptoData[];
+  error?: string;
 }
 
-export type DataProcessor = (data: CryptoData[]) => MarketStats;
-
-export const computeMarketStats: DataProcessor = (data) => {
-  const total = data.reduce((acc, curr) => acc + curr.price, 0);
-  const volume = data.reduce((acc, curr) => acc + curr.volume24h, 0);
-  
-  return {
-    totalVolume: volume,
-    averagePrice: data.length > 0 ? total / data.length : 0,
-    count: data.length,
-  };
+export const validateCryptoData = (data: unknown): data is CryptoData => {
+  const d = data as CryptoData;
+  return (
+    typeof d?.id === 'string' &&
+    typeof d?.symbol === 'string' &&
+    typeof d?.priceUsd === 'number' &&
+    typeof d?.timestamp === 'number'
+  );
 };
 
-export const isValidCryptoEntry = (data: any): data is CryptoData => {
-  return (
-    typeof data.symbol === 'string' &&
-    typeof data.price === 'number' &&
-    typeof data.timestamp === 'number' &&
-    typeof data.volume24h === 'number'
-  );
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+};
+
+export const calculatePercentageChange = (oldVal: number, newVal: number): number => {
+  if (oldVal === 0) return 0;
+  return ((newVal - oldVal) / oldVal) * 100;
 };
