@@ -1,37 +1,38 @@
-export interface CryptoData {
+export interface CryptoTransaction {
   id: string;
-  symbol: string;
-  priceUsd: number;
-  volume24h: number;
+  amount: number;
+  currency: string;
   timestamp: number;
+  status: 'pending' | 'completed' | 'failed';
 }
 
-export type PriceMap = Record<string, number>;
-
-export interface CryptoResponse {
-  success: boolean;
-  data: CryptoData[];
-  error?: string;
+export interface CryptoBalance {
+  asset: string;
+  available: string;
+  reserved: string;
 }
 
-export const validateCryptoData = (data: unknown): data is CryptoData => {
-  const d = data as CryptoData;
-  return (
-    typeof d?.id === 'string' &&
-    typeof d?.symbol === 'string' &&
-    typeof d?.priceUsd === 'number' &&
-    typeof d?.timestamp === 'number'
-  );
+export type NetworkType = 'mainnet' | 'testnet' | 'devnet';
+
+export interface CryptoConfig {
+  network: NetworkType;
+  retryAttempts: number;
+  timeoutMs: number;
+}
+
+export const validateTransaction = (tx: CryptoTransaction): boolean => {
+  return tx.amount > 0 && tx.id.length > 0;
 };
 
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
+export const formatBalance = (balance: CryptoBalance): number => {
+  return parseFloat(balance.available) + parseFloat(balance.reserved);
 };
 
-export const calculatePercentageChange = (oldVal: number, newVal: number): number => {
-  if (oldVal === 0) return 0;
-  return ((newVal - oldVal) / oldVal) * 100;
+export const getNetworkEndpoint = (network: NetworkType): string => {
+  const endpoints: Record<NetworkType, string> = {
+    mainnet: 'https://api.mainnet.wideeyedmessa.io',
+    testnet: 'https://api.testnet.wideeyedmessa.io',
+    devnet: 'https://api.devnet.wideeyedmessa.io',
+  };
+  return endpoints[network];
 };
