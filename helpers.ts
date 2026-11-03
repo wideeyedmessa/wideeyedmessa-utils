@@ -7,13 +7,14 @@ const logFormat = format.combine(
 );
 
 export const logger: Logger = createLogger({
-  level: 'info',
+  level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
   transports: [
     new transports.Console(),
     new transports.DailyRotateFile({
       filename: 'logs/crypto-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
       maxSize: '20m',
       maxFiles: '14d'
     })
