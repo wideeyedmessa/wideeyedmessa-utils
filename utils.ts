@@ -1,36 +1,30 @@
-import { createHash } from 'crypto';
+const CACHE_SIZE = 1000;
+const cache = new Map<string, any>();
 
-export interface AddressValidationRule {
-  maxLength: number;
-  prefix?: string;
-}
+export const memoize = <T, R>(fn: (arg: T) => R): ((arg: T) => R) => {
+  return (arg: T): R => {
+    if (cache.has(JSON.stringify(arg))) {
+      return cache.get(JSON.stringify(arg));
+    }
+    const result = fn(arg);
+    if (cache.size >= CACHE_SIZE) {
+      const firstKey = cache.keys().next().value;
+      cache.delete(firstKey);
+    }
+    cache.set(JSON.stringify(arg), result);
+    return result;
+  };
+};
 
-export function normalizeHex(hexString: string): string {
-  const trimmed = hexString.trim().toLowerCase();
-  return trimmed.startsWith('0x') ? trimmed : `0x${trimmed}`;
-}
-
-export function hashSha256(data: string): string {
-  return createHash('sha256').update(data).digest('hex');
-}
-
-export function satoshiToBtc(satoshis: bigint): string {
-  const btc = Number(satoshis) / 100_000_000;
-  return btc.toFixed(8);
-}
-
-export function parseEtherToWei(amount: string): bigint {
-  const [whole, fraction = ''] = amount.split('.');
-  const paddedFraction = fraction.padEnd(18, '0').slice(0, 18);
-  return BigInt(`${whole}${paddedFraction}`);
-}
-
-export function isValidCryptoAddress(address: string, rule: AddressValidationRule): boolean {
-  if (!address || address.length > rule.maxLength) {
-    return false;
+export const batchProcess = async <T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, size: number = 50): Promise<R[]> => {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += size) {
+    const batch = items.slice(i, i + size);
+    results.push(...(await processor(batch)));
   }
-  if (rule.prefix && !address.startsWith(rule.prefix)) {
-    return false;
-  }
-  return /^[a-fA-F0-9]+$/.test(address.replace(/^0x/, ''));
-}
+  return results;
+};
+
+export const sanitizeHex = (input: string): string => {
+  return input.startsWith('0x') ? input.toLowerCase() : `0x${input.toLowerCase()}`;
+};
