@@ -1,30 +1,27 @@
-const CACHE_SIZE = 1000;
-const cache = new Map<string, any>();
+export interface RetryOptions {
+  attempts: number;
+  delay: number;
+}
 
-export const memoize = <T, R>(fn: (arg: T) => R): ((arg: T) => R) => {
-  return (arg: T): R => {
-    if (cache.has(JSON.stringify(arg))) {
-      return cache.get(JSON.stringify(arg));
-    }
-    const result = fn(arg);
-    if (cache.size >= CACHE_SIZE) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey);
-    }
-    cache.set(JSON.stringify(arg), result);
-    return result;
-  };
-};
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { attempts: 3, delay: 1000 }
+): Promise<T> {
+  let lastError: unknown;
 
-export const batchProcess = async <T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, size: number = 50): Promise<R[]> => {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += size) {
-    const batch = items.slice(i, i + size);
-    results.push(...(await processor(batch)));
+  for (let i = 0; i < options.attempts; i++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (i < options.attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, options.delay));
+      }
+    }
   }
-  return results;
-};
 
-export const sanitizeHex = (input: string): string => {
-  return input.startsWith('0x') ? input.toLowerCase() : `0x${input.toLowerCase()}`;
-};
+  throw lastError;
+}
+
+export const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
