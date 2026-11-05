@@ -4,14 +4,13 @@ export interface RetryOptions {
 }
 
 export async function withRetry<T>(
-  operation: () => Promise<T>,
+  fn: () => Promise<T>,
   options: RetryOptions = { attempts: 3, delay: 1000 }
 ): Promise<T> {
   let lastError: unknown;
-
   for (let i = 0; i < options.attempts; i++) {
     try {
-      return await operation();
+      return await fn();
     } catch (err) {
       lastError = err;
       if (i < options.attempts - 1) {
@@ -19,9 +18,5 @@ export async function withRetry<T>(
       }
     }
   }
-
   throw lastError;
 }
-
-export const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
